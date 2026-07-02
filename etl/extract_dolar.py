@@ -17,7 +17,6 @@ load_dotenv()
 
 DOLAR_API_URL = "https://dolarapi.com/v1/dolares"
 
-# [ENTREVISTA] Las variables de entorno desacoplan la config del código.
 # El mismo script funciona en dev (MinIO) y en prod (S3 real) — solo cambia el .env.
 MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "http://localhost:9000")
 MINIO_USER = os.getenv("MINIO_ROOT_USER", "minioadmin")
@@ -32,8 +31,6 @@ def get_s3_client():
         endpoint_url=MINIO_ENDPOINT,
         aws_access_key_id=MINIO_USER,
         aws_secret_access_key=MINIO_PASSWORD,
-        # [ENTREVISTA] Sin esta config, boto3 intenta hacer path-style requests
-        # que MinIO necesita pero S3 real no. Con esto funciona en los dos.
         config=boto3.session.Config(signature_version="s3v4"),
     )
 
