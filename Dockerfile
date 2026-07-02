@@ -1,5 +1,9 @@
 FROM python:3.11-slim
 
+# libgomp1: requerida por LightGBM para paralelismo (OpenMP)
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
 # uv — instalador de paquetes, más rápido que pip
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
@@ -16,6 +20,8 @@ RUN uv pip install --system \
     "polars>=0.20" \
     "psycopg2-binary>=2.9" \
     "python-dotenv>=1.0" \
+    "pandas>=2.0" \
+    "pyarrow>=15.0" \
     "lightgbm>=4.0" \
     "scikit-learn>=1.5" \
     "fastapi>=0.111" \
