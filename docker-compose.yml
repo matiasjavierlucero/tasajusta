@@ -1,6 +1,6 @@
 services:
   app:
-    image: python:3.11-slim
+    build: .
     working_dir: /workspace
     volumes:
       - .:/workspace                       # código editable en caliente, sin rebuild
