@@ -1,0 +1,27 @@
+docs/
+# Secretos y credenciales
+.env
+.env.*
+*.pem
+credentials
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Node / Next.js
+node_modules/
+.next/
+
+# Datos pesados (no versionar datasets)
+data/
+*.parquet
