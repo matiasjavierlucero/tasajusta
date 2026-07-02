@@ -25,3 +25,4 @@ node_modules/
 # Datos pesados (no versionar datasets)
 data/
 *.parquet
+    
