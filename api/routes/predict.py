@@ -1,0 +1,62 @@
+from datetime import date
+
+import pandas as pd
+from fastapi import APIRouter, HTTPException, Request
+
+from api.schemas import PredictRequest, PredictResponse
+from ml.train_lgbm import CAT_FEATURES
+
+router = APIRouter()
+
+
+@router.get("/health")
+def health(request: Request):
+    state = request.app.state
+    return {
+        "status":    "ok" if state.model else "sin modelo",
+        "model_key": state.model_key,
+        "dolar_blue": state.dolar_blue,
+    }
+
+
+@router.post("/predict", response_model=PredictResponse)
+def predict(req: PredictRequest, request: Request):
+    state = request.app.state
+
+    if state.model is None:
+        raise HTTPException(status_code=503, detail="Modelo no disponible")
+
+    anio_actual = date.today().year
+    antiguedad  = anio_actual - req.anio
+    km_valido   = req.km > 1
+    km_por_anio = req.km / max(antiguedad, 1)
+
+    X = pd.DataFrame([{
+        "marca":            req.marca,
+        "modelo":           req.modelo,
+        "provincia":        req.provincia,
+        "anio":             req.anio,
+        "antiguedad":       antiguedad,
+        "km":               float(req.km),
+        "km_valido":        km_valido,
+        "km_por_anio":      km_por_anio,
+        "dolar_blue_venta": state.dolar_blue,
+    }])
+
+    for col in CAT_FEATURES:
+        X[col] = X[col].astype("category")
+
+    precio = int(state.model.predict(X)[0])
+
+    advertencia = None
+    if antiguedad == 0:
+        advertencia = "Auto del año actual — estimación menos confiable"
+    elif state.dolar_blue is None:
+        advertencia = "Sin cotización blue hoy — feature dolar_blue_venta es null"
+
+    return PredictResponse(
+        precio_estimado_ars=precio,
+        modelo_usado=state.model_key,
+        dolar_blue_venta=state.dolar_blue,
+        advertencia=advertencia,
+    )
