@@ -9,30 +9,16 @@ import json
 import os
 from datetime import date, datetime, timezone
 
-import boto3
 import httpx
 from dotenv import load_dotenv
+
+from etl.infra import get_s3_client
 
 load_dotenv()
 
 DOLAR_API_URL = "https://dolarapi.com/v1/dolares"
 
-# El mismo script funciona en dev (MinIO) y en prod (S3 real) — solo cambia el .env.
-MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "http://localhost:9000")
-MINIO_USER = os.getenv("MINIO_ROOT_USER", "minioadmin")
-MINIO_PASSWORD = os.getenv("MINIO_ROOT_PASSWORD", "minioadmin123")
 BRONZE_BUCKET = os.getenv("MINIO_BUCKET", "tasajusta-bronze")
-
-
-def get_s3_client():
-    """Crea el cliente S3 apuntando a MinIO (dev) o S3 real (prod)."""
-    return boto3.client(
-        "s3",
-        endpoint_url=MINIO_ENDPOINT,
-        aws_access_key_id=MINIO_USER,
-        aws_secret_access_key=MINIO_PASSWORD,
-        config=boto3.session.Config(signature_version="s3v4"),
-    )
 
 
 def ensure_bucket_exists(s3_client) -> None:

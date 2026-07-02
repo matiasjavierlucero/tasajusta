@@ -1,0 +1,36 @@
+"""
+Factories de clientes de infraestructura compartidos entre módulos ETL.
+
+Por qué acá y no en cada módulo: get_s3_client() era idéntica en 4 archivos.
+Centralizar evita que un cambio de credencial o endpoint se rompa en 4 lugares.
+"""
+
+import os
+
+import boto3
+import psycopg2
+from dotenv import load_dotenv
+
+load_dotenv()
+
+MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "http://localhost:9000")
+MINIO_USER = os.getenv("MINIO_ROOT_USER", "minioadmin")
+MINIO_PASSWORD = os.getenv("MINIO_ROOT_PASSWORD", "minioadmin123")
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+
+def get_s3_client():
+    """Cliente boto3 apuntando a MinIO (dev) o S3 real (prod) — solo cambia el .env."""
+    return boto3.client(
+        "s3",
+        endpoint_url=MINIO_ENDPOINT,
+        aws_access_key_id=MINIO_USER,
+        aws_secret_access_key=MINIO_PASSWORD,
+        config=boto3.session.Config(signature_version="s3v4"),
+    )
+
+
+def get_pg_connection():
+    """Conexión psycopg2 a Postgres. Usar con context manager (with get_pg_connection())."""
+    return psycopg2.connect(DATABASE_URL)

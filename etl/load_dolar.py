@@ -9,19 +9,14 @@ import io
 import os
 from datetime import date
 
-import boto3
 import polars as pl
-import psycopg2
 from dotenv import load_dotenv
+
+from etl.infra import get_pg_connection, get_s3_client
 
 load_dotenv()
 
-MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "http://localhost:9000")
-MINIO_USER = os.getenv("MINIO_ROOT_USER", "minioadmin")
-MINIO_PASSWORD = os.getenv("MINIO_ROOT_PASSWORD", "minioadmin123")
 SILVER_BUCKET = os.getenv("MINIO_BUCKET", "tasajusta-bronze")
-
-DATABASE_URL = os.getenv("DATABASE_URL")
 
 
 CREATE_TABLE_SQL = """
@@ -47,15 +42,6 @@ ON CONFLICT (fecha, casa) DO UPDATE SET
     fetched_at = EXCLUDED.fetched_at;
 """
 
-
-def get_s3_client():
-    return boto3.client(
-        "s3",
-        endpoint_url=MINIO_ENDPOINT,
-        aws_access_key_id=MINIO_USER,
-        aws_secret_access_key=MINIO_PASSWORD,
-        config=boto3.session.Config(signature_version="s3v4"),
-    )
 
 
 def read_silver(s3_client, day: date) -> pl.DataFrame:
@@ -100,7 +86,7 @@ def run(day: date | None = None) -> None:
     df = read_silver(s3, day)
     print(f"  → {len(df)} filas leídas de silver.")
 
-    with psycopg2.connect(DATABASE_URL) as conn:
+    with get_pg_connection() as conn:
         n = load_to_postgres(df, conn)
 
     print(f"  → {n} filas upserted en cotizaciones_dolar.")
