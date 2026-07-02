@@ -31,8 +31,11 @@ HEADERS = {
 CRAWL_DELAY = 5  # segundos — respeta robots.txt Crawl-delay
 BASE_URL = "https://www.deruedas.com.ar"
 
-# 5 marcas = ~300 autos únicos, ~25 minutos de scraping
-MARCAS = ["Volkswagen", "Toyota", "Chevrolet", "Ford", "Renault"]
+# 10 marcas = ~600 autos únicos, ~50 minutos de scraping
+MARCAS = [
+    "Volkswagen", "Toyota", "Chevrolet", "Ford", "Renault",
+    "Peugeot", "Fiat", "Honda", "Nissan", "Citroen",
+]
 
 BRONZE_BUCKET = os.getenv("MINIO_BUCKET", "tasajusta-bronze")
 
