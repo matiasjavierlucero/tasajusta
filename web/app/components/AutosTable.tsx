@@ -15,7 +15,7 @@ const BRAND_COLORS: Record<string, string> = {
   Peugeot:    "bg-indigo-900/60 text-indigo-300 border-indigo-800",
   Fiat:       "bg-orange-900/60 text-orange-300 border-orange-800",
   Honda:      "bg-rose-900/60 text-rose-300 border-rose-800",
-  Nissan:     "bg-slate-800/80 text-slate-300 border-slate-700",
+  Nissan:     "bg-slate-700/80 text-slate-200 border-slate-600",
   Citroen:    "bg-violet-900/60 text-violet-300 border-violet-800",
 };
 
