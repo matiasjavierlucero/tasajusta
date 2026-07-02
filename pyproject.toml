@@ -28,3 +28,5 @@ select = ["E", "F", "I"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Agrega el root del proyecto a sys.path para que `import etl` funcione
+pythonpath = ["."]
