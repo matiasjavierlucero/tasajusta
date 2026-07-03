@@ -1,28 +1,28 @@
 # CLAUDE.md — TasaJusta
 
-> Este archivo lo lee Claude Code en cada sesión. Define CÓMO trabajamos y el contexto del proyecto.
+> Este archivo lo lee Claude Code en cada sesion. Define CoMO trabajamos y el contexto del proyecto.
 
 ---
 
 ## ⚠️ Modo de trabajo: enseñar mientras construimos (LO MÁS IMPORTANTE)
 
 Estoy usando este proyecto para APRENDER, no solo para tener un resultado. El objetivo es poder
-explicar cada decisión en una entrevista técnica. Seguí SIEMPRE estas reglas:
+explicar cada decision en una entrevista técnica. Seguí SIEMPRE estas reglas:
 
-1. Antes de escribir código, explicá el enfoque en 3-5 líneas: qué vas a hacer y por qué. Esperá mi
-   confirmación antes de implementar cambios grandes.
-2. Cuando haya una decisión de diseño (librería, patrón, estructura), NO la tomes en silencio:
+1. Antes de escribir codigo, explicá el enfoque en 3-5 líneas: qué vas a hacer y por qué. Esperá mi
+   confirmacion antes de implementar cambios grandes.
+2. Cuando haya una decision de diseño (librería, patron, estructura), NO la tomes en silencio:
    presentá 2-3 opciones con sus trade-offs y pedime que elija.
 3. Diffs chicos, una cosa a la vez. Nada de generar muchos archivos de golpe.
-4. Comentá el código no obvio explicando el PORQUÉ, no el qué.
+4. Comentá el codigo no obvio explicando el PORQUÉ, no el qué.
 5. Después de implementar algo, cerrá con 3 bullets: "qué hace / por qué así / qué preguntaría un
    entrevistador sobre esto".
 6. Marcá con `// ` los conceptos que debería poder explicar en una entrevista.
-7. Si te digo "dejame intentar primero", NO escribas el código: esperá mi intento y revisámelo.
-8. Nunca uses una librería o patrón que no hayas explicado antes en esta sesión.
+7. Si te digo "dejame intentar primero", NO escribas el codigo: esperá mi intento y revisámelo.
+8. Nunca uses una librería o patron que no hayas explicado antes en esta sesion.
 9. NO construyas fases enteras de corrido. Vamos fase por fase, concepto por concepto, a mi ritmo.
 
-Detalle completo de la metodología y las preguntas de autoevaluación por fase: ver
+Detalle completo de la metodología y las preguntas de autoevaluacion por fase: ver
 `docs/modo-aprendizaje.md`.
 
 ---
@@ -30,13 +30,13 @@ Detalle completo de la metodología y las preguntas de autoevaluación por fase:
 ## Qué es el proyecto
 
 **TasaJusta**: plataforma que estima el precio justo de un auto usado en Argentina Y detecta
-publicaciones por debajo de mercado ("detector de oportunidades"), mostrando además cómo se mueve el
-mercado del usado frente al dólar.
+publicaciones por debajo de mercado ("detector de oportunidades"), mostrando además como se mueve el
+mercado del usado frente al dolar.
 
 **El ángulo que lo hace destacar** (no es "otro predictor de precios más"):
-- Detección de oportunidades/anomalías, no solo predicción.
-- Cruce con lo macro (dólar) — muy argentino, fuentes gratis y estables.
-- NLP sobre las descripciones para mejorar la estimación y flaggear publicaciones sospechosas.
+- Deteccion de oportunidades/anomalías, no solo prediccion.
+- Cruce con lo macro (dolar) — muy argentino, fuentes gratis y estables.
+- NLP sobre las descripciones para mejorar la estimacion y flaggear publicaciones sospechosas.
 
 Roadmap completo por fases: ver `docs/plan.md`.
 
@@ -46,7 +46,7 @@ Roadmap completo por fases: ver `docs/plan.md`.
 
 - **Fase:** 0 (setup del repo) → arrancando Fase 1.
 - **Entorno listo:** WSL2 (Ubuntu), Docker Desktop con backend WSL2, VS Code (remoto WSL), Claude Code.
-- **Próximo paso:** escribir el `docker-compose.yml` de desarrollo (app Python + Postgres + MinIO),
+- **Proximo paso:** escribir el `docker-compose.yml` de desarrollo (app Python + Postgres + MinIO),
   entendiendo cada servicio antes de escribirlo.
 
 ---
@@ -54,9 +54,9 @@ Roadmap completo por fases: ver `docs/plan.md`.
 ## Stack (decidido)
 
 - **ETL/ML:** Python 3.11+, Polars (o Pandas).
-- **Data lake dev:** MinIO (S3-compatible, en Docker). Prod futuro: S3 real (mismo código `boto3`).
+- **Data lake dev:** MinIO (S3-compatible, en Docker). Prod futuro: S3 real (mismo codigo `boto3`).
 - **DB dev:** Postgres en Docker. Prod: Supabase/Neon.
-- **ML:** scikit-learn + LightGBM (baseline) y PyTorch (MLP + comparación honesta).
+- **ML:** scikit-learn + LightGBM (baseline) y PyTorch (MLP + comparacion honesta).
 - **NLP:** Hugging Face sentence-transformers (embeddings de descripciones, en batch).
 - **API:** FastAPI (+ Mangum para Lambda más adelante).
 - **IaC:** Terraform. **CI/CD:** GitHub Actions. **Frontend:** Next.js 14 en Vercel.
@@ -78,8 +78,8 @@ Roadmap completo por fases: ver `docs/plan.md`.
 
 ## Diario de decisiones
 
-Mantengo un `DECISIONS.md` en la raíz: una entrada por decisión relevante (contexto, opciones,
-elección, trade-off, cómo lo explicaría en 30 segundos). Recordámelo cuando tomemos una decisión de
+Mantengo un `DECISIONS.md` en la raíz: una entrada por decision relevante (contexto, opciones,
+eleccion, trade-off, como lo explicaría en 30 segundos). Recordámelo cuando tomemos una decision de
 diseño importante. Template en `docs/modo-aprendizaje.md`.
 
 ---
