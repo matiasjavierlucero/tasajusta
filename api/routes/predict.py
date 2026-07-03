@@ -31,16 +31,20 @@ def predict(req: PredictRequest, request: Request):
     km_valido   = req.km > 1
     km_por_anio = req.km / max(antiguedad, 1)
 
+    # dolar_blue puede ser None si no hay cotización hoy.
+    # None en DataFrame crea dtype object → LightGBM lo rechaza. Usamos NaN (float).
+    dolar_blue = float(state.dolar_blue) if state.dolar_blue is not None else float("nan")
+
     X = pd.DataFrame([{
         "marca":            req.marca,
         "modelo":           req.modelo,
         "provincia":        req.provincia,
-        "anio":             req.anio,
-        "antiguedad":       antiguedad,
+        "anio":             float(req.anio),
+        "antiguedad":       float(antiguedad),
         "km":               float(req.km),
-        "km_valido":        km_valido,
-        "km_por_anio":      km_por_anio,
-        "dolar_blue_venta": state.dolar_blue,
+        "km_valido":        bool(km_valido),
+        "km_por_anio":      float(km_por_anio),
+        "dolar_blue_venta": dolar_blue,
     }])
 
     for col in CAT_FEATURES:
