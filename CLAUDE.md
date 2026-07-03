@@ -17,7 +17,7 @@ explicar cada decisión en una entrevista técnica. Seguí SIEMPRE estas reglas:
 4. Comentá el código no obvio explicando el PORQUÉ, no el qué.
 5. Después de implementar algo, cerrá con 3 bullets: "qué hace / por qué así / qué preguntaría un
    entrevistador sobre esto".
-6. Marcá con `// [ENTREVISTA]` los conceptos que debería poder explicar en una entrevista.
+6. Marcá con `// ` los conceptos que debería poder explicar en una entrevista.
 7. Si te digo "dejame intentar primero", NO escribas el código: esperá mi intento y revisámelo.
 8. Nunca uses una librería o patrón que no hayas explicado antes en esta sesión.
 9. NO construyas fases enteras de corrido. Vamos fase por fase, concepto por concepto, a mi ritmo.
