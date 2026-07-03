@@ -46,7 +46,7 @@ def read_gold(s3_client, day: date) -> pd.DataFrame:
 
 def prepare(df: pd.DataFrame):
     """Separa features y target, tipea categoricals."""
-    # [ENTREVISTA] LightGBM necesita dtype 'category' en pandas para
+    #  LightGBM necesita dtype 'category' en pandas para
     # activar su encoding nativo — sin esto las trata como strings y falla
     for col in CAT_FEATURES:
         df[col] = df[col].astype("category")
@@ -116,7 +116,7 @@ def run(day: date | None = None) -> dict:
 
     X, y = prepare(df)
 
-    # [ENTREVISTA] random_state=42 garantiza reproducibilidad — el mismo split
+    #  random_state=42 garantiza reproducibilidad — el mismo split
     # siempre, así podés comparar LightGBM vs MLP en exactamente el mismo test set
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42

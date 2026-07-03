@@ -31,7 +31,7 @@ load_dotenv()
 GOLD_BUCKET   = os.getenv("MINIO_BUCKET", "tasajusta-bronze")
 MODELS_BUCKET = "tasajusta-models"
 
-# [ENTREVISTA] modelo NO incluido en MLP — ~50 categorías únicas con 2-3 ejemplos
+#  modelo NO incluido en MLP — ~50 categorías únicas con 2-3 ejemplos
 # cada una. Con OHE serían 50 columnas de casi puro ruido para 156 filas.
 FEATURE_COLS = [
     "marca", "provincia",

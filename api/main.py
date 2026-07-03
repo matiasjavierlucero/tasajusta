@@ -11,7 +11,7 @@ from api.routes.predict import router as predict_router
 
 load_dotenv()
 
-MODELS_BUCKET = "tasajusta-models"
+MODELS_BUCKET = os.getenv("MODELS_BUCKET", "tasajusta-models")
 
 
 @asynccontextmanager
