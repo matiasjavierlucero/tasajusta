@@ -1,5 +1,10 @@
 output "api_url" {
-  description = "URL pública del endpoint de predicción"
+  description = "URL pública del endpoint de predicción (API Gateway)"
+  value       = aws_apigatewayv2_stage.default.invoke_url
+}
+
+output "function_url" {
+  description = "Lambda Function URL directa (sin auth, puede tener restricciones en cuentas nuevas)"
   value       = aws_lambda_function_url.predict.function_url
 }
 
