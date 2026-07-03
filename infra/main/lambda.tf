@@ -36,6 +36,18 @@ resource "aws_lambda_function_url" "predict" {
   }
 }
 
+# [ENTREVISTA] Resource-based policy: le dice a AWS quién puede invocar este Lambda.
+# Sin esto, Function URL devuelve 403 aunque authorization_type sea NONE.
+# Principal "*" = cualquiera puede invocar. function_url_auth_type = "NONE" es requerido
+# para que el permiso aplique solo a Function URL (no a otras formas de invocación).
+resource "aws_lambda_permission" "public_url" {
+  statement_id           = "FunctionURLAllowPublicAccess"
+  action                 = "lambda:InvokeFunctionUrl"
+  function_name          = aws_lambda_function.predict.function_name
+  principal              = "*"
+  function_url_auth_type = "NONE"
+}
+
 resource "aws_cloudwatch_log_group" "predict" {
   name              = "/aws/lambda/${aws_lambda_function.predict.function_name}"
   retention_in_days = 7  # sin retención definida, CloudWatch guarda logs para siempre (cuesta plata)
