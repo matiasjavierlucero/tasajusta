@@ -41,13 +41,6 @@ jobs:
           role-to-assume: ${{ vars.AWS_ETL_ROLE_ARN }}
           aws-region: us-east-1
 
-      # Deshabilita IPv6 a nivel kernel: GitHub Actions tiene IPv6 configurado
-      # pero Supabase no es alcanzable en esa dirección desde los runners.
-      - name: Deshabilitar IPv6
-        run: |
-          sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
-          sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
-
       - name: Correr pipeline ETL
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
