@@ -6,6 +6,8 @@ Centralizar evita que un cambio de credencial o endpoint se rompa en 4 lugares.
 """
 
 import os
+import socket
+import urllib.parse
 
 import boto3
 import psycopg2
@@ -37,4 +39,22 @@ def get_s3_client():
 
 def get_pg_connection():
     """Conexión psycopg2 a Postgres. Usar con context manager (with get_pg_connection())."""
-    return psycopg2.connect(DATABASE_URL)
+    parsed = urllib.parse.urlparse(DATABASE_URL)
+    host   = parsed.hostname
+
+    # libpq prefiere IPv6 cuando DNS devuelve ambas (AAAA + A). En Docker y GitHub
+    # Actions la dirección IPv6 de Supabase no es alcanzable → forzamos IPv4.
+    _local = {"localhost", "127.0.0.1", "postgres"}
+    if host and host not in _local:
+        try:
+            host = socket.getaddrinfo(host, None, socket.AF_INET)[0][4][0]
+        except socket.gaierror:
+            host = parsed.hostname  # fallback al hostname original
+
+    return psycopg2.connect(
+        host=host,
+        port=parsed.port or 5432,
+        dbname=parsed.path.lstrip("/"),
+        user=parsed.username,
+        password=parsed.password,
+    )
