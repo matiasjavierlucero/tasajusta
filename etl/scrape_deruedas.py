@@ -1,12 +1,15 @@
 """
-Scraper de autos usados: DeRuedas → MinIO bronze.
+Scraper de vehículos usados: DeRuedas → MinIO bronze.
+
+Cubre los 3 segmentos (Autos, Utilitarios/Camionetas, Motos) y toda Argentina.
+La URL base `bus.asp?segmento=X` sin provincia devuelve listings de todo el país.
 
 Dos fases:
-  1. Recolección: bus.asp?marca=X → URLs únicas de listings
-  2. Detalle: por cada URL, extrae precio/año/km de los inputs ocultos
+  1. Recolección: bus.asp?segmento=X → URLs únicas de listings (con paginación)
+  2. Detalle: por cada URL extrae precio/año/km de los inputs ocultos
 
 Respeta el Crawl-delay: 5s del robots.txt.
-Idempotente: autos_usados/YYYY-MM-DD.json — reejecutar sobreescribe el mismo archivo.
+Idempotente: vehículos_usados/YYYY-MM-DD.json — reejecutar sobreescribe el mismo archivo.
 """
 
 import json
@@ -28,33 +31,47 @@ HEADERS = {
         "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     )
 }
-CRAWL_DELAY = 5  # segundos — respeta robots.txt Crawl-delay
-BASE_URL = "https://www.deruedas.com.ar"
+CRAWL_DELAY = 5   # segundos — respeta robots.txt Crawl-delay
+BASE_URL    = "https://www.deruedas.com.ar"
+PAGE_SIZE   = 15  # resultados por página
 
-# 10 marcas = ~600 autos únicos, ~50 minutos de scraping
-MARCAS = [
-    "Volkswagen", "Toyota", "Chevrolet", "Ford", "Renault",
-    "Peugeot", "Fiat", "Honda", "Nissan", "Citroen",
-]
+# 0=Autos, 1=Utilitarios/Camionetas, 2=Motos
+SEGMENTOS = {
+    0: "Autos",
+    1: "Utilitarios/Camionetas",
+    2: "Motos",
+}
 
 BRONZE_BUCKET = os.getenv("MINIO_BUCKET", "tasajusta-bronze")
 
 
-def collect_listing_urls(marca: str, client: httpx.Client) -> set[str]:
-    """Obtiene hasta 60 URLs únicas de listings para una marca vía bus.asp."""
-    r = client.get(
-        f"{BASE_URL}/bus.asp",
-        params={
-            "segmento": 0,
-            "condicion": "Usados",
-            "tipo": "Autos",
-            "desde": 0,
-            "marca": marca,
-        },
-        timeout=15,
-    )
-    r.raise_for_status()
-    return set(re.findall(r"/vendo/[^\s\"<']+", r.text))
+def collect_listing_urls(segmento: int, client: httpx.Client) -> set[str]:
+    """
+    Pagina bus.asp?segmento=X (toda Argentina) incrementando `desde`
+    hasta que no aparezcan URLs nuevas.
+    """
+    all_urls: set[str] = set()
+    desde = 0
+
+    while True:
+        r = client.get(
+            f"{BASE_URL}/bus.asp",
+            params={"segmento": segmento, "desde": desde},
+            timeout=15,
+        )
+        r.raise_for_status()
+
+        page_urls = set(re.findall(r"/vendo/[^\s\"<']+", r.text))
+        nuevas    = page_urls - all_urls
+
+        if not nuevas:
+            break
+
+        all_urls |= nuevas
+        desde    += PAGE_SIZE
+        time.sleep(CRAWL_DELAY)
+
+    return all_urls
 
 
 def parse_listing_url(path: str) -> dict | None:
@@ -62,17 +79,15 @@ def parse_listing_url(path: str) -> dict | None:
     Extrae marca, modelo, condicion y provincia del path de la URL.
     Ejemplo: /vendo/Volkswagen/Gol/Usado/Buenos-Aires?cod=12345
     """
-    m = re.match(
-        r"/vendo/([^/]+)/([^/]+)/([^/]+)/([^?]+)\?cod=(\d+)", path
-    )
+    m = re.match(r"/vendo/([^/]+)/([^/]+)/([^/]+)/([^?]+)\?cod=(\d+)", path)
     if not m:
         return None
     return {
-        "marca": m.group(1).replace("-", " "),
-        "modelo": m.group(2).replace("-", " "),
+        "marca":     m.group(1).replace("-", " "),
+        "modelo":    m.group(2).replace("-", " "),
         "condicion": m.group(3),
         "provincia": m.group(4).replace("-", " "),
-        "cod": m.group(5),
+        "cod":       m.group(5),
     }
 
 
@@ -86,29 +101,31 @@ def scrape_detail(path: str, client: httpx.Client) -> dict | None:
         return None
 
     def extract_input(name: str) -> str | None:
-        # Busca <input ... name="campo" ... value="valor">
         m = re.search(rf'name="{name}"[^>]+value="([^"]*)"', r.text)
         return m.group(1) if m else None
 
     precio = extract_input("precio")
-    anio = extract_input("anio")
-    km = extract_input("kilometraje")
+    anio   = extract_input("anio")
+    km     = extract_input("kilometraje")
 
     if not all([precio, anio, km]):
         return None
 
-    return {
-        "precio_ars": int(precio),
-        "anio": int(anio),
-        "km": int(km),
-    }
+    try:
+        return {
+            "precio_ars": int(precio),
+            "anio":       int(anio),
+            "km":         int(km),
+        }
+    except ValueError:
+        return None
 
 
 def run() -> None:
     today = date.today().isoformat()
     print(f"=== Scraper DeRuedas — {today} ===")
-    print(f"Marcas: {', '.join(MARCAS)}")
-    print(f"Crawl-delay: {CRAWL_DELAY}s\n")
+    print(f"Segmentos: {', '.join(f'{k}={v}' for k, v in SEGMENTOS.items())}")
+    print(f"Cobertura: Toda Argentina | Crawl-delay: {CRAWL_DELAY}s\n")
 
     s3 = get_s3_client()
     try:
@@ -120,57 +137,59 @@ def run() -> None:
 
     with httpx.Client(headers=HEADERS, follow_redirects=True) as client:
 
-        # ── Fase 1: recolectar URLs de listings ──────────────────────────
-        print("[ Fase 1 ] Recolectando URLs de listings...")
-        all_urls: set[str] = set()
-        for marca in MARCAS:
-            urls = collect_listing_urls(marca, client)
-            nuevas = urls - all_urls
-            all_urls |= urls
-            print(f"  {marca}: {len(nuevas)} nuevas | acumulado: {len(all_urls)}")
+        for segmento, nombre in SEGMENTOS.items():
+
+            # ── Fase 1: recolectar URLs del segmento ─────────────────────
+            print(f"[ Segmento {segmento} — {nombre} ]")
+            print(f"  Recolectando URLs...")
+            urls = collect_listing_urls(segmento, client)
+            print(f"  URLs únicas: {len(urls)}")
             time.sleep(CRAWL_DELAY)
 
-        total = len(all_urls)
-        print(f"\n  Total URLs únicas: {total}\n")
+            # ── Fase 2: scraping de detalle ───────────────────────────────
+            total = len(urls)
+            ok = 0
+            for i, path in enumerate(sorted(urls), 1):
+                meta = parse_listing_url(path)
+                if not meta:
+                    continue
 
-        # ── Fase 2: scraping de detalle ───────────────────────────────────
-        print("[ Fase 2 ] Scrapeando páginas de detalle...")
-        for i, path in enumerate(sorted(all_urls), 1):
-            meta = parse_listing_url(path)
-            if not meta:
-                continue
+                detail = scrape_detail(path, client)
+                if not detail:
+                    print(f"  [{i:4d}/{total}] SKIP  {meta['marca']} {meta['modelo']}")
+                    time.sleep(CRAWL_DELAY)
+                    continue
 
-            detail = scrape_detail(path, client)
-            if not detail:
-                print(f"  [{i:3d}/{total}] SKIP  {meta['marca']} {meta['modelo']}")
+                record = {
+                    **meta,
+                    **detail,
+                    "segmento":  segmento,
+                    "url":       f"{BASE_URL}{path}",
+                    "scraped_at": datetime.now(timezone.utc).isoformat(),
+                }
+                records.append(record)
+                ok += 1
+                print(
+                    f"  [{i:4d}/{total}] OK  "
+                    f"{meta['marca']:12} {meta['modelo']:15} "
+                    f"{detail['anio']} | "
+                    f"${detail['precio_ars']:>12,} | {detail['km']:>7,} km | "
+                    f"{meta['provincia']}"
+                )
                 time.sleep(CRAWL_DELAY)
-                continue
 
-            record = {
-                **meta,
-                **detail,
-                "url": f"{BASE_URL}{path}",
-                "scraped_at": datetime.now(timezone.utc).isoformat(),
-            }
-            records.append(record)
-            print(
-                f"  [{i:3d}/{total}] OK  "
-                f"{meta['marca']:12} {meta['modelo']:15} "
-                f"{detail['anio']} — "
-                f"${detail['precio_ars']:>12,} | {detail['km']:>7,} km"
-            )
-            time.sleep(CRAWL_DELAY)
+            print(f"  → {ok}/{total} registros OK para {nombre}\n")
 
     # ── Guardar en bronze ─────────────────────────────────────────────────
-    print(f"\nRegistros obtenidos: {len(records)}")
+    print(f"Total registros: {len(records)}")
     payload = {
         "scraped_at": datetime.now(timezone.utc).isoformat(),
-        "source": BASE_URL,
-        "marcas": MARCAS,
-        "total": len(records),
-        "data": records,
+        "source":     BASE_URL,
+        "segmentos":  SEGMENTOS,
+        "total":      len(records),
+        "data":       records,
     }
-    key = f"autos_usados/{today}.json"
+    key = f"vehiculos_usados/{today}.json"
     s3.put_object(
         Bucket=BRONZE_BUCKET,
         Key=key,

@@ -19,9 +19,13 @@ async def lifespan(app: FastAPI):
     today = date.today().isoformat()
     s3    = get_s3_client()
 
-    # Modelo
+    # Modelo — busca el más reciente disponible, no estrictamente hoy
     try:
-        key  = f"lgbm/model_lgbm_{today}.pkl"
+        objects = s3.list_objects_v2(Bucket=MODELS_BUCKET, Prefix="lgbm/model_lgbm_")
+        keys    = sorted(o["Key"] for o in objects.get("Contents", []))
+        if not keys:
+            raise FileNotFoundError("No hay modelos en el bucket")
+        key  = keys[-1]   # el más reciente por orden lexicográfico (fecha en el nombre)
         resp = s3.get_object(Bucket=MODELS_BUCKET, Key=key)
         app.state.model     = pickle.loads(resp["Body"].read())
         app.state.model_key = key
@@ -31,13 +35,12 @@ async def lifespan(app: FastAPI):
         app.state.model     = None
         app.state.model_key = None
 
-    # Cotización blue
+    # Cotización blue — usa la más reciente disponible (no necesariamente hoy)
     try:
         conn = get_pg_connection()
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT venta FROM cotizaciones_dolar WHERE fecha = %s AND casa = 'blue'",
-                (date.today(),),
+                "SELECT venta FROM cotizaciones_dolar WHERE casa = 'blue' ORDER BY fecha DESC LIMIT 1"
             )
             row = cur.fetchone()
         conn.close()

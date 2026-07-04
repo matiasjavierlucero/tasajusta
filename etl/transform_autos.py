@@ -32,7 +32,7 @@ ANIO_MIN = 1990
 
 def read_bronze(s3_client, day: date) -> dict:
     """Lee el JSON crudo de la capa bronze."""
-    key = f"autos_usados/{day.isoformat()}.json"
+    key = f"vehiculos_usados/{day.isoformat()}.json"
     resp = s3_client.get_object(Bucket=BRONZE_BUCKET, Key=key)
     return json.loads(resp["Body"].read())
 
@@ -71,6 +71,7 @@ def transform(raw: dict, day: date) -> pl.DataFrame:
             pl.col("anio").cast(pl.Int32),
             pl.col("km").cast(pl.Int64),
             pl.col("url").cast(pl.String),
+            pl.col("segmento").cast(pl.Int8),
         ])
         .with_columns(pl.lit(scraped_at).alias("scraped_at"))
         # precio = 0 → null (publicación sin precio cargado)

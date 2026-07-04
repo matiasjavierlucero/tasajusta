@@ -55,8 +55,6 @@ def predict(req: PredictRequest, request: Request):
     advertencia = None
     if antiguedad == 0:
         advertencia = "Auto del año actual — estimación menos confiable"
-    elif state.dolar_blue is None:
-        advertencia = "Sin cotización blue hoy — feature dolar_blue_venta es null"
 
     return PredictResponse(
         precio_estimado_ars=precio,
