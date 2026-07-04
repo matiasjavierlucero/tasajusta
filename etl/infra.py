@@ -42,19 +42,21 @@ def get_pg_connection():
     parsed = urllib.parse.urlparse(DATABASE_URL)
     host   = parsed.hostname
 
-    # libpq prefiere IPv6 cuando DNS devuelve ambas (AAAA + A). En Docker y GitHub
-    # Actions la dirección IPv6 de Supabase no es alcanzable → forzamos IPv4.
+    # `hostaddr` le dice a libpq qué IP usar para el TCP sin hacer su propio DNS.
+    # libpq prefiere IPv6 cuando el hostname tiene registro AAAA → "Cannot assign
+    # requested address" en entornos donde IPv6 no es alcanzable (Docker, GitHub Actions).
+    # Con hostaddr=IPv4, libpq conecta directo sin resolver el nombre.
+    hostaddr = host  # default: mismo que host (libpq resolverá)
     _local = {"localhost", "127.0.0.1", "postgres"}
     if host and host not in _local:
         try:
-            resolved = socket.getaddrinfo(host, None, socket.AF_INET)
-            host = resolved[0][4][0]
-            print(f"  → DNS forzado a IPv4: {host}")
-        except Exception as e:
-            print(f"  → WARNING: no se pudo resolver IPv4 ({e}), usando hostname")
+            hostaddr = socket.getaddrinfo(host, None, socket.AF_INET)[0][4][0]
+        except Exception:
+            hostaddr = host
 
     return psycopg2.connect(
-        host=host,
+        host=host,         # usado para verificación SSL del certificado
+        hostaddr=hostaddr, # IP real → bypasea el DNS de libpq completamente
         port=parsed.port or 5432,
         dbname=parsed.path.lstrip("/"),
         user=parsed.username,
