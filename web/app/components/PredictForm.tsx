@@ -21,9 +21,8 @@ const MARCAS     = Object.keys(MODELOS_POR_MARCA).sort();
 const ANIO_MIN   = 2005;
 const ANIO_MAX   = new Date().getFullYear();
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ??
-  "https://5yoo5ugs44.execute-api.us-east-1.amazonaws.com";
+// Llama al Route Handler de Next.js (mismo origen → sin CORS)
+const API_URL = "/api";
 
 type PredictResult = {
   precio_estimado_ars: number;
