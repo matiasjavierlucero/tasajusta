@@ -1,5 +1,6 @@
 import { supabase, type CotizacionDolar, type AutoUsado } from "@/lib/supabase";
 import AutosTable from "@/app/components/AutosTable";
+import PredictForm from "@/app/components/PredictForm";
 
 async function getDolar(): Promise<CotizacionDolar[]> {
   const { data } = await supabase
@@ -53,6 +54,14 @@ export default async function HomePage() {
       </header>
 
       <main className="px-8 py-10 max-w-7xl mx-auto">
+
+        {/* Cotizador */}
+        <section className="mb-12">
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-500 mb-5">
+            Cotizador
+          </h2>
+          <PredictForm />
+        </section>
 
         {/* Cotizaciones del dólar */}
         <section className="mb-12">
