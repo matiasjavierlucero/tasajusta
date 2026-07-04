@@ -1,6 +1,6 @@
 # [ENTREVISTA] OIDC permite que GitHub Actions asuma roles de IAM sin credenciales long-lived.
 # GitHub emite un JWT por run; AWS lo valida contra el proveedor OIDC y entrega credenciales
-# temporales (15 min). Si el token se filtra, expira solo — no hay secreto que rotar.
+# temporales. Si el token se filtra, expira solo — no hay secreto que rotar.
 
 resource "aws_iam_openid_connect_provider" "github" {
   url             = "https://token.actions.githubusercontent.com"
@@ -11,7 +11,8 @@ resource "aws_iam_openid_connect_provider" "github" {
 }
 
 resource "aws_iam_role" "github_etl" {
-  name = "${var.project}-github-etl"
+  name                 = "${var.project}-github-etl"
+  max_session_duration = 21600  # 6 horas — el scraper completo puede tardar 3-5h
 
   # Trust policy: solo workflows del repo matiasjavierlucero/tasajusta pueden asumir este rol
   assume_role_policy = jsonencode({
