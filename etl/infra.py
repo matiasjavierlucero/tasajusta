@@ -47,9 +47,11 @@ def get_pg_connection():
     _local = {"localhost", "127.0.0.1", "postgres"}
     if host and host not in _local:
         try:
-            host = socket.getaddrinfo(host, None, socket.AF_INET)[0][4][0]
-        except socket.gaierror:
-            host = parsed.hostname  # fallback al hostname original
+            resolved = socket.getaddrinfo(host, None, socket.AF_INET)
+            host = resolved[0][4][0]
+            print(f"  → DNS forzado a IPv4: {host}")
+        except Exception as e:
+            print(f"  → WARNING: no se pudo resolver IPv4 ({e}), usando hostname")
 
     return psycopg2.connect(
         host=host,
