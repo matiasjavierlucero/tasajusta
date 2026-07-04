@@ -44,11 +44,16 @@ SEGMENTOS = {
 
 BRONZE_BUCKET = os.getenv("MINIO_BUCKET", "tasajusta-bronze")
 
+# IDs de provincia en DeRuedas (confirmados: van de 2 a 24)
+PROVINCIA_IDS = range(2, 25)
 
-def collect_listing_urls(segmento: int, client: httpx.Client) -> set[str]:
+
+def collect_listing_urls(segmento: int, provincia_id: int, client: httpx.Client) -> set[str]:
     """
-    Pagina bus.asp?segmento=X (toda Argentina) incrementando `desde`
+    Pagina bus.asp?segmento=X&provincia=Y incrementando `desde`
     hasta que no aparezcan URLs nuevas.
+    Sin filtro de provincia, DeRuedas devuelve solo los 30 destacados
+    de la home y la paginación no avanza — por eso iteramos por provincia.
     """
     all_urls: set[str] = set()
     desde = 0
@@ -56,7 +61,7 @@ def collect_listing_urls(segmento: int, client: httpx.Client) -> set[str]:
     while True:
         r = client.get(
             f"{BASE_URL}/bus.asp",
-            params={"segmento": segmento, "desde": desde},
+            params={"segmento": segmento, "provincia": provincia_id, "desde": desde},
             timeout=15,
         )
         r.raise_for_status()
@@ -139,11 +144,18 @@ def run() -> None:
 
         for segmento, nombre in SEGMENTOS.items():
 
-            # ── Fase 1: recolectar URLs del segmento ─────────────────────
+            # ── Fase 1: recolectar URLs — loop por provincia ──────────────
             print(f"[ Segmento {segmento} — {nombre} ]")
-            print(f"  Recolectando URLs...")
-            urls = collect_listing_urls(segmento, client)
-            print(f"  URLs únicas: {len(urls)}")
+            print(f"  Recolectando URLs por provincia (IDs 2-24)...")
+            urls: set[str] = set()
+            for prov_id in PROVINCIA_IDS:
+                prov_urls = collect_listing_urls(segmento, prov_id, client)
+                nuevas    = prov_urls - urls
+                if nuevas:
+                    urls |= nuevas
+                    print(f"    Provincia {prov_id:2d}: {len(nuevas):4d} nuevas | acumulado: {len(urls)}")
+                time.sleep(CRAWL_DELAY)
+            print(f"  URLs únicas totales: {len(urls)}")
             time.sleep(CRAWL_DELAY)
 
             # ── Fase 2: scraping de detalle ───────────────────────────────
