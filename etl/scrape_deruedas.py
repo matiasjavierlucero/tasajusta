@@ -44,8 +44,9 @@ SEGMENTOS = {
 
 BRONZE_BUCKET = os.getenv("MINIO_BUCKET", "tasajusta-bronze")
 
-# IDs de provincia en DeRuedas (confirmados: van de 2 a 24)
-PROVINCIA_IDS = range(2, 25)
+# IDs de provincia en DeRuedas. La Rioja=12 confirmado visualmente → orden alfabético.
+# Incluimos ID 1 (Buenos Aires Provincia) por si acaso.
+PROVINCIA_IDS = range(1, 25)
 
 
 def collect_listing_urls(segmento: int, provincia_id: int, client: httpx.Client) -> set[str]:
