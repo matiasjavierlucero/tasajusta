@@ -1,0 +1,47 @@
+name: ETL Dólar Diario
+
+on:
+  # Corre todos los días a las 12:00 UTC (09:00 Argentina)
+  schedule:
+    - cron: "0 12 * * *"
+  # Permite correrlo manualmente desde la pestaña Actions en GitHub
+  workflow_dispatch:
+
+# [ENTREVISTA] id-token:write es el permiso que habilita OIDC.
+# Sin él, GitHub no emite el JWT que AWS necesita para validar la identidad.
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  etl:
+    runs-on: ubuntu-latest
+
+    env:
+      # Apunta al datalake real en S3 (sin MINIO_ENDPOINT → get_s3_client() usa AWS)
+      MINIO_BUCKET: tasajusta-datalake-966940665955
+      AWS_DEFAULT_REGION: us-east-1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-etl.txt
+
+      - name: Instalar dependencias ETL
+        run: pip install -r requirements-etl.txt
+
+      - name: Configurar credenciales AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # ARN del rol creado por Terraform — guardalo en GitHub vars (no secret, no es sensible)
+          role-to-assume: ${{ vars.AWS_ETL_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Correr pipeline ETL
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python -m etl.pipeline
