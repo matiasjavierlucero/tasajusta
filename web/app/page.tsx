@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import PredictForm from "@/app/components/PredictForm";
 import DolarSection from "@/app/components/DolarSection";
+import OportunidadesSection from "@/app/components/OportunidadesSection";
 import VehiculosSection from "@/app/components/VehiculosSection";
 
 // ── Skeletons para las secciones que cargan datos ──────────────────────────
@@ -165,6 +166,11 @@ export default function HomePage() {
         {/* Dólar — streamed */}
         <Suspense fallback={<DolarSkeleton />}>
           <DolarSection />
+        </Suspense>
+
+        {/* Oportunidades — streamed */}
+        <Suspense fallback={<TableSkeleton />}>
+          <OportunidadesSection />
         </Suspense>
 
         {/* Vehículos — streamed */}

@@ -43,3 +43,11 @@ jobs:
           MINIO_BUCKET:  tasajusta-datalake-966940665955
           MODELS_BUCKET: tasajusta-models-966940665955
         run: python -m ml.train_lgbm
+
+      - name: Scoring oportunidades → Supabase
+        env:
+          MINIO_BUCKET:         tasajusta-datalake-966940665955
+          MODELS_BUCKET:        tasajusta-models-966940665955
+          SUPABASE_URL:         https://rcmxwfmemhvjynorrpnd.supabase.co
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python -m ml.score_autos

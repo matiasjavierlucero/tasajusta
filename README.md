@@ -1,235 +1,170 @@
 # TasaJusta
 
-**Estimador de precio justo para vehículos usados en Argentina.**
+**Used car price intelligence platform for Argentina.**
 
-TasaJusta analiza publicaciones reales del mercado para decirte cuánto debería valer tu auto — en pesos y en dólares blue. No usa precios de lista ni tablas estáticas: aprende directamente de lo que la gente publica hoy.
+TasaJusta estimates the fair market price of a used vehicle based on real listings, flags underpriced opportunities, and tracks how the used car market moves against the blue-dollar exchange rate.
 
----
-
-## ¿Qué hace?
-
-- **Cotizador**: ingresás marca, modelo, año, kilómetros y provincia — el modelo te devuelve el precio estimado según el mercado actual.
-- **Cruce con el dólar blue**: cada estimación se expresa también en USD al tipo de cambio informal vigente.
-- **Datos frescos**: el pipeline corre semanalmente y reentrena el modelo con las publicaciones más recientes.
+🔗 **Live demo:** [tasajusta.vercel.app](https://tasajusta.vercel.app)
 
 ---
 
-## Fuente de datos y cumplimiento
+## What it does
 
-Los datos de vehículos provienen de [DeRuedas](https://www.deruedas.com.ar), portal argentino de compraventa de autos usados.
-
-El scraper respeta íntegramente las directivas publicadas en `robots.txt`:
-
-| Directiva | Valor | Cómo la respetamos |
-|-----------|-------|-------------------|
-| `User-agent: *` / `Allow: /` | Acceso permitido a todas las rutas | No accedemos a rutas privadas ni áreas restringidas |
-| `Crawl-delay: 5` | 5 segundos entre requests | Hardcodeado en el scraper (`CRAWL_DELAY = 5`) |
-| `ai-train: no` | No usar para entrenar modelos generativos | No usamos los datos para generar texto ni imágenes |
-
-El uso que hacemos es **análisis de mercado de precios** — equivalente a lo que hace cualquier comparador de precios. Extraemos únicamente datos públicos (marca, modelo, año, kilómetros, precio, provincia) de listings ya publicados por los propios usuarios de la plataforma.
-
-La cotización del dólar blue se obtiene de [bluelytics.com.ar](https://api.bluelytics.com.ar/v2/latest), API pública y gratuita.
+- **Price estimator** — Enter make, model, year, mileage, and province. A LightGBM model trained on real listings returns the estimated market price in ARS and USD (blue rate).
+- **Opportunity detector** — Listings priced more than 10% below the model's estimate are flagged as buying opportunities.
+- **Blue-dollar cross** — Every estimate includes the USD equivalent at the current informal exchange rate — a signal unique to the Argentine market.
+- **Weekly pipeline** — A GitHub Actions cron scrapes DeRuedas weekly, retrains the model, and scores all listings automatically.
 
 ---
 
-## Arquitectura
+## Architecture
 
 ```
-DeRuedas ──────────────────────────────────────────────────────────────────┐
-                                                                           │
-                    ETL Pipeline (GitHub Actions — semanal)                │
-                                                                           │
-  scrape_deruedas.py ──► bronze/ (JSON crudo)                             │
-         │                    │                                            │
-         │            transform_autos.py ──► silver/ (Parquet limpio)      │
-         │                    │                                            │
-         │             load_autos.py ──► Supabase (PostgreSQL)             │
-         │                    │                                            │
-         │              gold_autos.py ──► gold/ (features para ML)         │
-         │                    │                                            │
-         │             train_lgbm.py ──► S3 tasajusta-models/              │
-                                               │                           │
-                                               ▼                           │
-                                        AWS Lambda                         │
-                                     (FastAPI + LightGBM)                  │
-                                               │                           │
-                                               ▼                           │
-                                     Next.js (Vercel)                      │
-                                      [frontend]                           │
-                                                                           │
-bluelytics.com.ar ──► extract_dolar.py ──► S3 bronze ──► Supabase ────────┘
-(diario, GitHub Actions)
+DeRuedas ──────────────────────────── ETL Pipeline (GitHub Actions — weekly)
+                                                │
+  scrape_deruedas.py ──► S3 bronze (raw JSON)  │
+         │                                      │
+  transform_autos.py ──► S3 silver (Parquet)   │
+         │                                      │
+    load_autos.py ──► Supabase (PostgreSQL)     │
+         │                                      │
+    gold_autos.py ──► S3 gold (ML features)    │
+         │                                      │
+   train_lgbm.py ──► S3 models (.pkl)          │
+         │                                      │
+   score_autos.py ──► Supabase (scores)        │
+                            │
+                      AWS Lambda
+                   (FastAPI + LightGBM)
+                            │
+                     Next.js (Vercel)
+                      [frontend]
+
+bluelytics.com.ar ──► extract_dolar.py ──► Supabase (daily)
 ```
 
 ---
 
-## Pipeline de datos — capas medallion
+## Tech stack
 
-### Bronze — datos crudos
-
-El scraper recorre los tres segmentos de DeRuedas para toda Argentina:
-
-| Segmento | Descripción |
-|----------|-------------|
-| `0` | Autos |
-| `1` | Utilitarios y Camionetas |
-| `2` | Motos |
-
-Cada run genera un archivo JSON en `s3://tasajusta-datalake/vehiculos_usados/YYYY-MM-DD.json` con todos los campos tal cual vienen del sitio.
-
-### Silver — datos limpios
-
-`transform_autos.py` aplica las siguientes reglas y escribe Parquet:
-
-- `precio_ars = 0` → `null` (publicaciones sin precio cargado)
-- `anio` fuera de `[1990, año_actual]` → `null`
-- `km = 0` en un vehículo que no es 0km → `null`
-- Duplicados por `cod` (ID único de DeRuedas) → se conserva uno solo
-
-### Gold — features para ML
-
-`gold_autos.py` construye las variables de entrada del modelo:
-
-| Feature | Descripción |
-|---------|-------------|
-| `antiguedad` | `año_scraping − anio` |
-| `km_valido` | `True` si el km es real, `False` si fue imputado |
-| `km_por_anio` | `km / max(antiguedad, 1)` |
-| `dolar_blue_venta` | Cotización blue del día de scraping (join con tabla dólar) |
-
----
-
-## Modelo de Machine Learning
-
-### LightGBM (modelo en producción)
-
-| Parámetro | Valor |
-|-----------|-------|
-| Algoritmo | Gradient Boosting (LightGBM) |
-| Target | `precio_ars` |
-| Features numéricas | `anio`, `antiguedad`, `km`, `km_valido`, `km_por_anio`, `dolar_blue_venta` |
-| Features categóricas | `marca`, `modelo`, `provincia` (nativas — sin OHE) |
-| `n_estimators` | 300 |
-| `num_leaves` | 15 (árbol poco profundo para controlar overfitting) |
-| `learning_rate` | 0.05 |
-
-El modelo se serializa con `pickle` y se sube a `s3://tasajusta-models/lgbm/model_lgbm_YYYY-MM-DD.pkl`. La Lambda siempre carga el archivo más reciente disponible.
-
-### MLP PyTorch (en desarrollo)
-
-`train_mlp.py` entrena una red neuronal para comparar performance contra LightGBM. Objetivo: evaluar si la complejidad adicional justifica el costo de inferencia.
-
----
-
-## Infraestructura (AWS + Supabase + Vercel)
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  AWS                                                        │
-│                                                             │
-│  S3 tasajusta-datalake   ← datos bronze/silver/gold         │
-│  S3 tasajusta-models     ← modelos ML serializados          │
-│  ECR                     ← imagen Docker de la Lambda       │
-│  Lambda (container)      ← FastAPI + LightGBM              │
-│  API Gateway (HTTP)      ← endpoint público                 │
-│  CloudWatch              ← logs de la Lambda               │
-│  IAM OIDC                ← autenticación para CI/CD         │
-│                                                             │
-├─────────────────────────────────────────────────────────────┤
-│  Supabase (PostgreSQL)                                      │
-│                                                             │
-│  autos_usados            ← listings scrapeados              │
-│  cotizaciones_dolar      ← histórico de tipo de cambio      │
-│                                                             │
-├─────────────────────────────────────────────────────────────┤
-│  Vercel                                                     │
-│                                                             │
-│  Next.js 14              ← frontend (SSR + Route Handlers)  │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-Toda la infraestructura AWS se gestiona con **Terraform**. El estado vive en S3 con lock en DynamoDB.
-
-### CI/CD — GitHub Actions
-
-| Workflow | Trigger | Qué hace |
-|----------|---------|----------|
-| `etl-dolar.yml` | Diario (09:00 ART) | Descarga cotización blue → Supabase |
-| `etl-vehiculos.yml` | Semanal (dom 03:00 ART) | Scrape → Transform → Load → Gold → Retrain |
-
-Autenticación con AWS vía **OIDC** — sin credenciales de larga duración almacenadas como secrets.
-
----
-
-## Stack técnico
-
-| Capa | Tecnología |
-|------|-----------|
+| Layer | Technology |
+|-------|-----------|
 | Scraping / ETL | Python 3.11, httpx, Polars |
-| Data lake local | MinIO (S3-compatible) |
-| Data lake prod | AWS S3 |
-| Base de datos | Supabase (PostgreSQL) |
-| ML | LightGBM, scikit-learn, PyTorch |
-| API | FastAPI, Mangum (AWS Lambda adapter) |
-| Frontend | Next.js 14, Tailwind CSS, Vercel |
-| IaC | Terraform |
-| CI/CD | GitHub Actions |
+| Data lake (dev) | MinIO (S3-compatible) |
+| Data lake (prod) | AWS S3 — medallion pattern (bronze / silver / gold) |
+| Database | Supabase (PostgreSQL) |
+| ML | LightGBM, scikit-learn, PyTorch (MLP comparison) |
+| API | FastAPI + Mangum (Lambda adapter) |
+| Infra | AWS Lambda, API Gateway, ECR, IAM — all provisioned with Terraform |
+| CI/CD | GitHub Actions with OIDC (no long-lived AWS credentials) |
+| Frontend | Next.js 14 App Router, Tailwind CSS, deployed on Vercel |
 
 ---
 
-## Desarrollo local
+## Data pipeline — medallion layers
 
-### Requisitos
+| Layer | Location | What it contains |
+|-------|----------|-----------------|
+| **Bronze** | `s3://tasajusta-datalake/vehiculos_usados/YYYY-MM-DD.json` | Raw scrape output — 3 vehicle segments, all 23 Argentine provinces |
+| **Silver** | `s3://tasajusta-datalake/silver/autos_usados/YYYY-MM-DD.parquet` | Cleaned Parquet: nulled-out zero prices, deduplication by listing ID |
+| **Gold** | `s3://tasajusta-datalake/gold/autos_usados/YYYY-MM-DD.parquet` | ML-ready features: `antiguedad`, `km_por_anio`, `dolar_blue_venta` |
 
-- Docker y Docker Compose
+---
+
+## ML model
+
+**LightGBM** — gradient boosting on tabular data.
+
+| | Train | Test |
+|---|---|---|
+| MAE | $1.4M ARS | $4.1M ARS |
+| R² | 0.942 | 0.556 |
+| MAPE | — | 21% |
+
+Overfitting is expected at ~300 listings — it improves as the weekly pipeline accumulates data. A PyTorch MLP was also trained for comparison (`ml/train_mlp.py`); LightGBM was chosen for production due to better R² and lower RMSE on this dataset size.
+
+**Opportunity score:**
+```
+score = (precio_estimado − precio_real) / precio_estimado
+```
+Listings with `score > 0.10` (10%+ below estimated value) are surfaced as opportunities.
+
+---
+
+## Infrastructure
+
+Everything in AWS is provisioned with Terraform. State lives in S3 with DynamoDB locking.
+
+```
+AWS
+├── S3 tasajusta-datalake-*     ← bronze / silver / gold data
+├── S3 tasajusta-models-*       ← serialized model artifacts (.pkl)
+├── ECR tasajusta-api           ← Lambda container image
+├── Lambda tasajusta-predict    ← FastAPI inference (512MB, 30s timeout)
+├── API Gateway (HTTP v2)       ← public endpoint
+├── IAM OIDC                    ← keyless auth for GitHub Actions
+└── CloudWatch                  ← Lambda logs (7-day retention)
+
+Supabase
+├── autos_usados                ← scraped listings + ML scores
+└── cotizaciones_dolar          ← daily blue-dollar history
+
+Vercel
+└── Next.js 14                  ← SSR frontend + Route Handler proxy
+```
+
+---
+
+## CI/CD workflows
+
+| Workflow | Trigger | Steps |
+|----------|---------|-------|
+| `etl-dolar.yml` | Daily 09:00 ART | Fetch blue rate → Supabase |
+| `etl-vehiculos.yml` | Weekly Sun 03:00 ART | Scrape → Transform → Load → Gold → Train → Score |
+| `retrain.yml` | Manual (`workflow_dispatch`) | Gold → Train → Score (reuses existing S3 data) |
+
+Authentication uses **OIDC** — GitHub Actions assumes an IAM role via federated identity. No AWS access keys stored as secrets.
+
+---
+
+## Key architectural decisions
+
+**Why Lambda over EC2?**
+Lambda is in the always-free tier (1M requests/month forever). An EC2 instance would consume AWS credits that expire in 6 months on new accounts. Cold start (~2s) is acceptable for this use case.
+
+**Why LightGBM over PyTorch for tabular data?**
+Both were trained and compared honestly. LightGBM handles high-cardinality categoricals natively (make/model/province without one-hot encoding), trains faster, and achieves better R² on this dataset size. PyTorch MLP is kept in the repo as a comparison baseline.
+
+**Why Supabase REST API instead of direct Postgres from CI?**
+GitHub Actions runners have IPv6-only DNS resolution for Supabase's direct connection host. Port 5432 is unreachable. Port 443 (PostgREST HTTPS) works without restriction. The ETL scripts use a dual-strategy pattern: REST API when `SUPABASE_URL` is available, psycopg2 for local dev.
+
+---
+
+## Local development
+
+### Requirements
+- Docker and Docker Compose
 - Python 3.11+
-- AWS CLI (solo si necesitás interactuar con S3/Lambda)
 
 ### Setup
 
 ```bash
-cp env.example .env
-# Completar las variables en .env
+cp .env.example .env
+# Fill in the variables
 
 docker compose up -d
 docker compose exec app bash
 
-# Dentro del contenedor:
-pip install -r requirements-etl.txt
-
-# Correr el pipeline local (usa MinIO + Postgres del docker-compose)
+# Inside the container:
 python -m etl.scrape_deruedas
 python -m etl.transform_autos
 python -m etl.load_autos
 python -m etl.gold_autos
 python -m ml.train_lgbm
+python -m ml.score_autos
 ```
 
-### Variables de entorno
-
-```env
-# Postgres (dev local)
-POSTGRES_USER=
-POSTGRES_PASSWORD=
-POSTGRES_DB=
-DATABASE_URL=
-
-# MinIO (dev) / S3 (prod)
-MINIO_ENDPOINT=http://localhost:9000
-MINIO_ROOT_USER=
-MINIO_ROOT_PASSWORD=
-MINIO_BUCKET=tasajusta-bronze
-
-# Supabase (prod)
-SUPABASE_URL=
-SUPABASE_SERVICE_KEY=
-
-# Modelo
-MODELS_BUCKET=tasajusta-models
-```
-
-### Levantar la API localmente
+### Run the API locally
 
 ```bash
 pip install -r requirements-lambda.txt
@@ -239,40 +174,48 @@ uvicorn api.main:app --reload
 
 ---
 
-## Estructura del repositorio
+## Repository structure
 
 ```
 tasajusta/
-├── api/                  # FastAPI — endpoint de predicción
-│   ├── main.py           # lifespan: carga modelo + cotización blue
-│   ├── routes/predict.py # POST /predict
-│   └── schemas.py        # PredictRequest / PredictResponse
 ├── etl/
-│   ├── scrape_deruedas.py  # scraper (3 segmentos, toda Argentina)
-│   ├── transform_autos.py  # bronze → silver
-│   ├── load_autos.py       # silver → Supabase
-│   ├── gold_autos.py       # silver → gold (feature engineering)
-│   ├── extract_dolar.py    # fetch cotización blue
-│   ├── transform_dolar.py  # limpieza cotizaciones
-│   ├── load_dolar.py       # → Supabase
-│   └── infra.py            # clientes S3 y Postgres
+│   ├── scrape_deruedas.py    # scraper — 3 segments, 23 provinces, Crawl-delay: 5s
+│   ├── transform_autos.py    # bronze → silver (clean + deduplicate)
+│   ├── load_autos.py         # silver → Supabase (REST API upsert)
+│   ├── gold_autos.py         # silver → gold (feature engineering)
+│   ├── extract_dolar.py      # blue-dollar rate fetch
+│   ├── transform_dolar.py    # dolar bronze → silver
+│   ├── load_dolar.py         # dolar silver → Supabase
+│   └── infra.py              # shared S3 + Postgres clients
 ├── ml/
-│   ├── train_lgbm.py    # entrenamiento LightGBM
-│   ├── train_mlp.py     # entrenamiento MLP PyTorch
-│   └── evaluate.py      # métricas comparativas
-├── web/                 # Next.js 14
+│   ├── train_lgbm.py         # LightGBM training + S3 artifact upload
+│   ├── train_mlp.py          # PyTorch MLP (comparison baseline)
+│   ├── evaluate.py           # side-by-side metrics
+│   └── score_autos.py        # batch scoring → opportunity detection
+├── api/
+│   ├── main.py               # FastAPI app + lifespan (model loaded once at startup)
+│   ├── routes/predict.py     # POST /predict
+│   └── schemas.py            # PredictRequest / PredictResponse
+├── web/                      # Next.js 14 frontend
 │   └── app/
 │       ├── page.tsx
-│       ├── components/PredictForm.tsx
-│       └── api/predict/route.ts   # proxy → Lambda (evita CORS)
-├── infra/               # Terraform
-├── .github/workflows/   # GitHub Actions
-├── docker-compose.yml   # dev local: app + postgres + minio
-└── Dockerfile           # imagen Lambda
+│       ├── components/
+│       │   ├── PredictForm.tsx          # client component — estimator form
+│       │   ├── DolarSection.tsx         # server component — blue-dollar rates
+│       │   ├── OportunidadesSection.tsx # server component — opportunity cards
+│       │   └── VehiculosSection.tsx     # server component — full listings table
+│       └── api/predict/route.ts         # Route Handler proxy → Lambda (avoids CORS)
+├── infra/
+│   ├── bootstrap/            # S3 + DynamoDB for Terraform remote state
+│   └── main/                 # Lambda, API Gateway, ECR, IAM, S3
+├── .github/workflows/        # GitHub Actions (ETL cron + retrain)
+├── docker-compose.yml        # dev: app + postgres + minio
+├── Dockerfile                # dev image
+└── lambda.Dockerfile         # production Lambda image (multi-stage, Python 3.12/AL2023)
 ```
 
 ---
 
-## Licencia
+## License
 
 MIT
