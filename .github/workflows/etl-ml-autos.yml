@@ -5,6 +5,11 @@ on:
     # Lunes a viernes 10:00 UTC = 07:00 Argentina
     - cron: "0 10 * * 1-5"
   workflow_dispatch:
+    inputs:
+      skip_extraction:
+        description: "Saltear extracción Lambda (datos ya en S3 desde ejecución local)"
+        type: boolean
+        default: false
 
 permissions:
   id-token: write
@@ -36,6 +41,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Extract MercadoLibre via Lambda
+        if: ${{ github.event.inputs.skip_extraction != 'true' }}
         run: |
           aws lambda invoke \
             --function-name tasajusta-etl-ml \
