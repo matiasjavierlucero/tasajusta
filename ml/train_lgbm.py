@@ -21,7 +21,7 @@ from etl.infra import get_s3_client
 load_dotenv()
 
 GOLD_BUCKET   = os.getenv("MINIO_BUCKET", "tasajusta-bronze")
-MODELS_BUCKET = "tasajusta-models"
+MODELS_BUCKET = os.getenv("MODELS_BUCKET", "tasajusta-models-966940665955")
 
 # Columnas categóricas que LightGBM maneja nativo
 CAT_FEATURES = ["marca", "modelo", "provincia"]

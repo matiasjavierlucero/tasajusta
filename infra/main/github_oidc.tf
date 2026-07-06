@@ -34,21 +34,31 @@ resource "aws_iam_role" "github_etl" {
   })
 }
 
-# Permiso mínimo: leer y escribir en el datalake (bronze + silver del ETL)
+# ETL: leer/escribir datalake (bronze+silver+gold) y escribir modelos entrenados
 resource "aws_iam_role_policy" "github_etl_s3" {
-  name = "datalake-readwrite"
+  name = "datalake-and-models-readwrite"
   role = aws_iam_role.github_etl.id
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Action = ["s3:PutObject", "s3:GetObject", "s3:ListBucket"]
-      Resource = [
-        aws_s3_bucket.datalake.arn,
-        "${aws_s3_bucket.datalake.arn}/*",
-      ]
-    }]
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = ["s3:PutObject", "s3:GetObject", "s3:ListBucket"]
+        Resource = [
+          aws_s3_bucket.datalake.arn,
+          "${aws_s3_bucket.datalake.arn}/*",
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = ["s3:PutObject", "s3:GetObject", "s3:ListBucket"]
+        Resource = [
+          aws_s3_bucket.models.arn,
+          "${aws_s3_bucket.models.arn}/*",
+        ]
+      },
+    ]
   })
 }
 
