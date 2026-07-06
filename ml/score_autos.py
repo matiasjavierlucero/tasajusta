@@ -93,7 +93,7 @@ def upsert_scores(df: pd.DataFrame) -> None:
     records = subset.to_dict(orient="records")
 
     resp = httpx.post(
-        f"{SUPABASE_URL}/rest/v1/autos_usados",
+        f"{SUPABASE_URL}/rest/v1/autos_usados?on_conflict=cod",
         headers={
             "apikey":        SUPABASE_KEY,
             "Authorization": f"Bearer {SUPABASE_KEY}",
