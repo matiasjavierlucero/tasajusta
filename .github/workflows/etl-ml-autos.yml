@@ -46,6 +46,9 @@ jobs:
           python3 -c "
           import json, sys
           r = json.load(open('response.json'))
+          if 'errorType' in r:
+              print('Lambda runtime error:', r.get('errorMessage', 'unknown'))
+              sys.exit(1)
           if r.get('statusCode', 500) != 200:
               print('Lambda ETL falló:', json.dumps(r, indent=2))
               sys.exit(1)

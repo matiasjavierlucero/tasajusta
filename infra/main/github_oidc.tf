@@ -131,9 +131,12 @@ resource "aws_iam_role_policy" "github_deploy" {
         Resource = aws_ecr_repository.api.arn
       },
       {
-        Effect   = "Allow"
-        Action   = "lambda:UpdateFunctionCode"
-        Resource = aws_lambda_function.predict.arn
+        Effect = "Allow"
+        Action = "lambda:UpdateFunctionCode"
+        Resource = [
+          aws_lambda_function.predict.arn,
+          aws_lambda_function.etl_ml.arn,
+        ]
       },
     ]
   })
