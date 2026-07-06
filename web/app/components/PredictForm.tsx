@@ -136,7 +136,7 @@ export default function PredictForm() {
           <div>
             <label className={labelCls}>Marca</label>
             <select className={selectCls} value={marca} onChange={e => handleMarca(e.target.value)}>
-              <option value="">Seleccioná una marca</option>
+              <option value="">Seleccioná una</option>
               {MARCAS.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
@@ -165,7 +165,7 @@ export default function PredictForm() {
               value={provincia}
               onChange={e => { setProvincia(e.target.value); setResult(null); }}
             >
-              <option value="">Seleccioná una provincia</option>
+              <option value="">Seleccioná una</option>
               {PROVINCIAS.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>

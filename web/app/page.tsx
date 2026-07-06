@@ -128,18 +128,34 @@ export default function HomePage() {
 
       {/* ── Footer ────────────────────────────────────────────────────────── */}
       <footer className="bg-brand-900 text-white mt-8">
-        <div className="max-w-7xl mx-auto px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icon.svg" alt="" width={32} height={32} className="rounded-xl opacity-90" />
-            <div>
-              <p className="font-bold text-white">TasaJusta</p>
-              <p className="text-xs text-brand-300 mt-0.5">Inteligencia de precios para el mercado de usados argentino</p>
+        <div className="max-w-7xl mx-auto px-6 py-10">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mb-6">
+            <div className="flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/icon.svg" alt="" width={32} height={32} className="rounded-xl opacity-90" />
+              <div>
+                <p className="font-bold text-white">TasaJusta</p>
+                <p className="text-xs text-brand-300 mt-0.5">Inteligencia de precios para el mercado de usados argentino</p>
+              </div>
+            </div>
+            <div className="flex flex-col sm:items-end gap-1 text-xs text-brand-300">
+              <span>Datos: DeRuedas.com.ar + Bluelytics</span>
+              <span>Modelo ML actualizado semanalmente</span>
             </div>
           </div>
-          <div className="flex flex-col sm:items-end gap-1 text-xs text-brand-300">
-            <span>Datos: DeRuedas.com.ar + Bluelytics</span>
-            <span>Modelo ML actualizado semanalmente</span>
+          <div className="border-t border-brand-700 pt-5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-brand-400">
+            <span>© {new Date().getFullYear()} TasaJusta. Todos los derechos reservados.</span>
+            <span>
+              Desarrollado por{" "}
+              <a
+                href="https://mjlucero.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-brand-200 hover:text-white transition-colors font-medium"
+              >
+                Matías Lucero
+              </a>
+            </span>
           </div>
         </div>
       </footer>
