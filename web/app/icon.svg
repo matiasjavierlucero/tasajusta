@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="512" height="512">
+  <!-- Fondo / Borde tipo App Icon -->
+  <rect x="10" y="10" width="180" height="180" rx="40" fill="#ffffff" stroke="#2974b4" stroke-width="8"/>
+
+  <!-- Silueta del Auto (Azul) -->
+  <path d="M 30 115
+           L 30 100
+           C 30 90 35 85 45 85
+           L 60 65
+           C 65 55 80 55 100 55
+           C 120 55 135 55 140 65
+           L 155 85
+           C 165 85 170 90 170 100
+           L 170 115
+           C 170 125 165 125 155 125
+           L 45 125
+           C 35 125 30 125 30 115 Z" fill="#2974b4" />
+  
+  <!-- Llantas del auto -->
+  <circle cx="60" cy="125" r="16" fill="#ffffff" stroke="#2974b4" stroke-width="6"/>
+  <circle cx="140" cy="125" r="16" fill="#ffffff" stroke="#2974b4" stroke-width="6"/>
+
+  <!-- Etiqueta de Precio (Verde) -->
+  <polygon points="100,30 130,65 130,120 70,120 70,65" fill="#4caf50" stroke="#ffffff" stroke-width="4" stroke-linejoin="round"/>
+  
+  <!-- Agujero de la etiqueta -->
+  <circle cx="100" cy="50" r="6" fill="#ffffff" />
+
+  <!-- Símbolo Dólar -->
+  <text x="100" y="96" font-family="system-ui, -apple-system, sans-serif" font-size="52" font-weight="bold" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">$</text>
+</svg>
