@@ -24,39 +24,28 @@ BRONZE_BUCKET = os.getenv("MINIO_BUCKET", "tasajusta-bronze")
 
 ML_BASE_URL = "https://api.mercadolibre.com"
 CATEGORY    = "MLA1743"  # Autos y Camionetas — Argentina
-RATE_DELAY  = 0.3        # segundos entre requests
+RATE_DELAY  = 0.5        # segundos entre requests
 
-MARCAS_TARGET = {
+MARCAS_TARGET = [
     "Volkswagen", "Toyota", "Chevrolet", "Ford",
     "Renault", "Peugeot", "Fiat", "Honda", "Nissan", "Citroen",
+]
+
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    ),
+    "Accept":          "application/json",
+    "Accept-Language": "es-AR,es;q=0.9",
 }
 
 
-def get_brand_filter_ids(client: httpx.Client) -> dict[str, str]:
+def fetch_marca_listings(marca: str, client: httpx.Client) -> list[dict]:
     """
-    Hace una búsqueda mínima para obtener los filter IDs de cada marca.
-    El search de ML es público — no requiere autenticación.
-    Retorna {nombre_marca: filter_id} solo para las marcas que nos interesan.
+    Busca listings por nombre de marca usando el parámetro q.
+    Pagina hasta 1000 resultados (límite de la API).
     """
-    resp = client.get(
-        f"{ML_BASE_URL}/sites/MLA/search",
-        params={"category": CATEGORY, "limit": 1},
-        timeout=15,
-    )
-    resp.raise_for_status()
-
-    for f in resp.json().get("available_filters", []):
-        if f["id"] == "BRAND":
-            return {
-                v["name"]: v["id"]
-                for v in f["values"]
-                if v["name"] in MARCAS_TARGET
-            }
-    return {}
-
-
-def fetch_brand_listings(brand_id: str, client: httpx.Client) -> list[dict]:
-    """Pagina todos los listings de una marca hasta el límite de 1000 de la API."""
     results: list[dict] = []
     limit = 50
 
@@ -64,11 +53,12 @@ def fetch_brand_listings(brand_id: str, client: httpx.Client) -> list[dict]:
         resp = client.get(
             f"{ML_BASE_URL}/sites/MLA/search",
             params={
+                "q":        marca,
                 "category": CATEGORY,
-                "BRAND":    brand_id,
                 "limit":    limit,
                 "offset":   offset,
             },
+            headers=HEADERS,
             timeout=15,
         )
         resp.raise_for_status()
@@ -138,18 +128,11 @@ def run(day: date | None = None) -> None:
     s3     = get_s3_client()
     client = httpx.Client()
 
-    brand_ids = get_brand_filter_ids(client)
-    marcas_encontradas = list(brand_ids.keys())
-    marcas_faltantes   = MARCAS_TARGET - set(marcas_encontradas)
-    print(f"  → Marcas encontradas en ML: {marcas_encontradas}")
-    if marcas_faltantes:
-        print(f"  ⚠ Marcas sin listings en ML: {marcas_faltantes}")
-
     all_items: list[dict] = []
 
-    for marca_nombre, brand_id in brand_ids.items():
-        print(f"  → {marca_nombre}...", end=" ", flush=True)
-        raw    = fetch_brand_listings(brand_id, client)
+    for marca in MARCAS_TARGET:
+        print(f"  → {marca}...", end=" ", flush=True)
+        raw    = fetch_marca_listings(marca, client)
         parsed = [p for item in raw if (p := parse_item(item)) is not None]
         print(f"{len(parsed)} listings ARS (de {len(raw)} totales)")
         all_items.extend(parsed)
