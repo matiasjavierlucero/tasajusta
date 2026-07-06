@@ -167,7 +167,7 @@ python -m ml.score_autos
 ### Run the API locally
 
 ```bash
-pip install -r requirements-lambda.txt
+pip install -r requirements/lambda.txt
 uvicorn api.main:app --reload
 # → http://localhost:8000/docs
 ```

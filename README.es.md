@@ -196,7 +196,7 @@ docker compose up -d
 docker compose exec app bash
 
 # Dentro del contenedor:
-pip install -r requirements-etl.txt
+pip install -r requirements/etl.txt
 
 # Correr el pipeline local (usa MinIO + Postgres del docker-compose)
 python -m etl.scrape_deruedas
@@ -232,7 +232,7 @@ MODELS_BUCKET=tasajusta-models
 ### Levantar la API localmente
 
 ```bash
-pip install -r requirements-lambda.txt
+pip install -r requirements/lambda.txt
 uvicorn api.main:app --reload
 # → http://localhost:8000/docs
 ```

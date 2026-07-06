@@ -4,8 +4,8 @@ FROM public.ecr.aws/lambda/python:3.12 AS builder
 
 RUN dnf install -y libgomp gcc gcc-c++ make && dnf clean all
 
-COPY requirements-lambda.txt .
-RUN pip install --no-cache-dir -r requirements-lambda.txt --target /build/packages
+COPY requirements/lambda.txt requirements/lambda.txt
+RUN pip install --no-cache-dir -r requirements/lambda.txt --target /build/packages
 
 # Stage 2 — runtime: sin compilador
 FROM public.ecr.aws/lambda/python:3.12
