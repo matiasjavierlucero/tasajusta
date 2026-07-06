@@ -1,0 +1,56 @@
+name: Deploy Lambda API
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "api/**"
+      - "requirements/lambda.txt"
+      - "lambda.Dockerfile"
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION:      us-east-1
+  ECR_REPOSITORY:  tasajusta-api
+  LAMBDA_FUNCTION: tasajusta-predict
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar credenciales AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login a Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build y push imagen Docker
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+        run: |
+          docker build -f lambda.Dockerfile \
+            -t $REGISTRY/$ECR_REPOSITORY:latest \
+            -t $REGISTRY/$ECR_REPOSITORY:${{ github.sha }} \
+            .
+          docker push $REGISTRY/$ECR_REPOSITORY:latest
+          docker push $REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
+
+      - name: Actualizar Lambda con la nueva imagen
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+        run: |
+          aws lambda update-function-code \
+            --function-name $LAMBDA_FUNCTION \
+            --image-uri $REGISTRY/$ECR_REPOSITORY:latest \
+            --region $AWS_REGION

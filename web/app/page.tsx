@@ -80,7 +80,7 @@ export default function HomePage() {
               {/* Steps */}
               <div className="space-y-3">
                 {[
-                  { n: "1", label: "Scrapeamos publicaciones reales de DeRuedas" },
+                  { n: "1", label: "Analizamos ofertas reales" },
                   { n: "2", label: "Un modelo ML analiza precio, año, km y dólar blue" },
                   { n: "3", label: "Obtenés el valor justo en pesos y en USD" },
                 ].map(({ n, label }) => (
@@ -139,7 +139,7 @@ export default function HomePage() {
               </div>
             </div>
             <div className="flex flex-col sm:items-end gap-1 text-xs text-brand-300">
-              <span>Datos: DeRuedas.com.ar + Bluelytics</span>
+              <span>Datos Reales + Bluelytics</span>
               <span>Modelo ML actualizado semanalmente</span>
             </div>
           </div>
