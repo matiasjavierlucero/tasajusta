@@ -37,10 +37,18 @@ FEATURE_COLS = [
 TARGET = "precio_ars"
 
 
+def latest_gold_date(s3_client) -> date:
+    resp = s3_client.list_objects_v2(Bucket=GOLD_BUCKET, Prefix="gold/autos_usados/")
+    keys = [o["Key"] for o in resp.get("Contents", [])]
+    if not keys:
+        raise FileNotFoundError("No hay archivos gold en S3")
+    dates = [date.fromisoformat(k.split("/")[-1].replace(".parquet", "")) for k in keys]
+    return max(dates)
+
+
 def read_gold(s3_client, day: date) -> pd.DataFrame:
     key = f"gold/autos_usados/{day.isoformat()}.parquet"
     resp = s3_client.get_object(Bucket=GOLD_BUCKET, Key=key)
-    # Leer con pandas directamente desde bytes
     return pd.read_parquet(io.BytesIO(resp["Body"].read()))
 
 
@@ -107,10 +115,10 @@ def save_model(model, s3_client, day: date) -> str:
 
 
 def run(day: date | None = None) -> dict:
-    day = day or date.today()
+    s3  = get_s3_client()
+    day = day or latest_gold_date(s3)
     print(f"=== Training LightGBM — {day} ===\n")
 
-    s3 = get_s3_client()
     df = read_gold(s3, day)
     print(f"Dataset: {len(df)} filas, {len(FEATURE_COLS)} features → target: {TARGET}")
 

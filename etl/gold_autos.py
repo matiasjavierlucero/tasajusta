@@ -30,6 +30,15 @@ SUPABASE_KEY   = os.getenv("SUPABASE_SERVICE_KEY")
 DATABASE_URL   = os.getenv("DATABASE_URL")
 
 
+def latest_silver_date(s3_client) -> date:
+    resp = s3_client.list_objects_v2(Bucket=SILVER_BUCKET, Prefix="silver/autos_usados/")
+    keys = [o["Key"] for o in resp.get("Contents", [])]
+    if not keys:
+        raise FileNotFoundError("No hay archivos silver en S3")
+    dates = [date.fromisoformat(k.split("/")[-1].replace(".parquet", "")) for k in keys]
+    return max(dates)
+
+
 def read_silver(s3_client, day: date) -> pl.DataFrame:
     key = f"silver/autos_usados/{day.isoformat()}.parquet"
     resp = s3_client.get_object(Bucket=SILVER_BUCKET, Key=key)
@@ -144,10 +153,9 @@ def save_to_gold(df: pl.DataFrame, s3_client, day: date) -> str:
 
 
 def run(day: date | None = None) -> None:
-    day = day or date.today()
+    s3  = get_s3_client()
+    day = day or latest_silver_date(s3)
     print(f"Feature engineering gold — {day}...")
-
-    s3 = get_s3_client()
 
     df = read_silver(s3, day)
     print(f"  → Silver leído: {len(df)} filas.")
