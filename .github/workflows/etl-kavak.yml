@@ -35,10 +35,25 @@ jobs:
           role-to-assume: ${{ vars.AWS_ETL_ROLE_ARN }}
           aws-region: us-east-1
 
-      - name: Scrape Kavak → bronze
-        env:
-          MINIO_BUCKET: tasajusta-datalake-966940665955
-        run: python -m etl.scrape_kavak
+      - name: Scrape Kavak via Lambda → bronze
+        run: |
+          aws lambda invoke \
+            --function-name tasajusta-kavak \
+            --payload '{}' \
+            --cli-binary-format raw-in-base64-out \
+            --region us-east-1 \
+            response.json
+          python3 -c "
+          import json, sys
+          r = json.load(open('response.json'))
+          if 'errorType' in r:
+              print('Lambda runtime error:', r.get('errorMessage', 'unknown'))
+              sys.exit(1)
+          if r.get('statusCode', 500) != 200:
+              print('Lambda Kavak falló:', json.dumps(r, indent=2))
+              sys.exit(1)
+          print('Lambda Kavak OK')
+          "
 
       - name: Transform bronze → silver
         env:

@@ -5,8 +5,8 @@ on:
     branches: [master]
     paths:
       - "api/**"
-      - "etl/extract_ml_autos.py"
-      - "etl/lambda_etl_ml.py"
+      - "etl/scrape_kavak.py"
+      - "etl/lambda_kavak.py"
       - "requirements/lambda.txt"
       - "lambda.Dockerfile"
   workflow_dispatch:
@@ -49,11 +49,15 @@ jobs:
           docker push $REGISTRY/$ECR_REPOSITORY:latest
           docker push $REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
 
-      - name: Actualizar Lambda con la nueva imagen
+      - name: Actualizar Lambdas con la nueva imagen
         env:
           REGISTRY: ${{ steps.ecr-login.outputs.registry }}
         run: |
           aws lambda update-function-code \
             --function-name $LAMBDA_FUNCTION \
+            --image-uri $REGISTRY/$ECR_REPOSITORY:latest \
+            --region $AWS_REGION
+          aws lambda update-function-code \
+            --function-name tasajusta-kavak \
             --image-uri $REGISTRY/$ECR_REPOSITORY:latest \
             --region $AWS_REGION

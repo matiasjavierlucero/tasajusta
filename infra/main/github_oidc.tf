@@ -63,6 +63,20 @@ resource "aws_iam_role_policy" "github_etl_s3" {
 }
 
 
+resource "aws_iam_role_policy" "github_etl_lambda_kavak" {
+  name = "invoke-kavak-lambda"
+  role = aws_iam_role.github_etl.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "lambda:InvokeFunction"
+      Resource = aws_lambda_function.kavak.arn
+    }]
+  })
+}
+
 output "github_etl_role_arn" {
   description = "ARN del rol OIDC para GitHub Actions — pegalo en el workflow y en GitHub vars"
   value       = aws_iam_role.github_etl.arn
@@ -118,9 +132,12 @@ resource "aws_iam_role_policy" "github_deploy" {
         Resource = aws_ecr_repository.api.arn
       },
       {
-        Effect   = "Allow"
-        Action   = "lambda:UpdateFunctionCode"
-        Resource = aws_lambda_function.predict.arn
+        Effect = "Allow"
+        Action = "lambda:UpdateFunctionCode"
+        Resource = [
+          aws_lambda_function.predict.arn,
+          aws_lambda_function.kavak.arn,
+        ]
       },
     ]
   })
