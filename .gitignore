@@ -26,3 +26,5 @@ node_modules/
 data/
 *.parquet
     
+# Claude Code
+.claude/
