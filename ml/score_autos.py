@@ -86,27 +86,26 @@ def upsert_scores(df: pd.DataFrame) -> None:
         print("Sin credenciales Supabase — saltando upsert")
         return
 
-    # Convertir explícitamente a tipos Python nativos para evitar problemas de serialización
     subset = df[["cod", "precio_estimado", "oportunidad_score"]].copy()
-    subset["precio_estimado"]  = subset["precio_estimado"].astype(int)
+    subset["precio_estimado"]   = subset["precio_estimado"].astype(int)
     subset["oportunidad_score"] = subset["oportunidad_score"].astype(float)
     records = subset.to_dict(orient="records")
 
+    # RPC: solo UPDATE, nunca INSERT — evita violar NOT NULL en cods que no están en autos_usados
     resp = httpx.post(
-        f"{SUPABASE_URL}/rest/v1/autos_usados?on_conflict=cod",
+        f"{SUPABASE_URL}/rest/v1/rpc/batch_update_scores",
         headers={
             "apikey":        SUPABASE_KEY,
             "Authorization": f"Bearer {SUPABASE_KEY}",
             "Content-Type":  "application/json",
-            "Prefer":        "resolution=merge-duplicates",
         },
-        json=records,
+        json={"records": records},
         timeout=60,
     )
     if not resp.is_success:
         print(f"Error Supabase {resp.status_code}: {resp.text}")
     resp.raise_for_status()
-    print(f"Upsert OK — {len(records)} registros actualizados en Supabase")
+    print(f"Update OK — {len(records)} registros actualizados en Supabase")
 
 
 def run() -> None:
