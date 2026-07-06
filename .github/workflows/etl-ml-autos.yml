@@ -35,10 +35,22 @@ jobs:
           role-to-assume: ${{ vars.AWS_ETL_ROLE_ARN }}
           aws-region: us-east-1
 
-      - name: Extract MercadoLibre → bronze
-        env:
-          MINIO_BUCKET: tasajusta-datalake-966940665955
-        run: python -m etl.extract_ml_autos
+      - name: Extract MercadoLibre via Lambda
+        run: |
+          aws lambda invoke \
+            --function-name tasajusta-etl-ml \
+            --payload '{}' \
+            --cli-binary-format raw-in-base64-out \
+            --region us-east-1 \
+            response.json
+          python3 -c "
+          import json, sys
+          r = json.load(open('response.json'))
+          if r.get('statusCode', 500) != 200:
+              print('Lambda ETL falló:', json.dumps(r, indent=2))
+              sys.exit(1)
+          print('Lambda ETL OK')
+          "
 
       - name: Transform ML bronze → silver
         env:

@@ -19,5 +19,7 @@ COPY ml/__init__.py ml/__init__.py
 COPY ml/train_lgbm.py ml/train_lgbm.py
 COPY etl/__init__.py etl/__init__.py
 COPY etl/infra.py etl/infra.py
+COPY etl/extract_ml_autos.py etl/extract_ml_autos.py
+COPY etl/lambda_etl_ml.py etl/lambda_etl_ml.py
 
 CMD ["api.lambda_handler.handler"]
