@@ -25,6 +25,12 @@ SILVER_BUCKET    = os.getenv("MINIO_BUCKET", "tasajusta-bronze")
 SUPABASE_URL     = os.getenv("SUPABASE_URL")
 SUPABASE_SVC_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 
+# SOURCE controla qué silver leer y qué valor de source guardar en Supabase.
+# "deruedas" (default) → silver/autos_usados/
+# "mercadolibre"       → silver/ml_autos_usados/
+_SOURCE        = os.getenv("SOURCE", "deruedas")
+_SILVER_PREFIX = "silver/ml_autos_usados" if _SOURCE == "mercadolibre" else "silver/autos_usados"
+
 
 CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS autos_usados (
@@ -39,25 +45,27 @@ CREATE TABLE IF NOT EXISTS autos_usados (
     km           BIGINT,
     url          TEXT,
     scraped_at   TIMESTAMPTZ,
-    segmento     SMALLINT      NOT NULL DEFAULT 0
+    segmento     SMALLINT      NOT NULL DEFAULT 0,
+    source       VARCHAR(20)   NOT NULL DEFAULT 'deruedas'
 );
 """
 
 UPSERT_SQL = """
 INSERT INTO autos_usados
-    (cod, fecha, marca, modelo, condicion, provincia, precio_ars, anio, km, url, scraped_at, segmento)
-VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    (cod, fecha, marca, modelo, condicion, provincia, precio_ars, anio, km, url, scraped_at, segmento, source)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
 ON CONFLICT (cod) DO UPDATE SET
     fecha      = EXCLUDED.fecha,
     precio_ars = EXCLUDED.precio_ars,
     km         = EXCLUDED.km,
     scraped_at = EXCLUDED.scraped_at,
-    segmento   = EXCLUDED.segmento;
+    segmento   = EXCLUDED.segmento,
+    source     = EXCLUDED.source;
 """
 
 
 def read_silver(s3_client, day: date) -> pl.DataFrame:
-    key  = f"silver/autos_usados/{day.isoformat()}.parquet"
+    key  = f"{_SILVER_PREFIX}/{day.isoformat()}.parquet"
     resp = s3_client.get_object(Bucket=SILVER_BUCKET, Key=key)
     return pl.read_parquet(io.BytesIO(resp["Body"].read()))
 
@@ -78,6 +86,7 @@ def load_via_rest(df: pl.DataFrame) -> int:
             "url":        row["url"],
             "scraped_at": row["scraped_at"],
             "segmento":   int(row["segmento"]),
+            "source":     _SOURCE,
         }
         for row in df.to_dicts()
     ]
@@ -104,7 +113,7 @@ def load_to_postgres(df: pl.DataFrame, conn) -> int:
             row["cod"], row["fecha"], row["marca"], row["modelo"],
             row["condicion"], row["provincia"], row["precio_ars"],
             row["anio"], row["km"], row["url"], row["scraped_at"],
-            int(row["segmento"]),
+            int(row["segmento"]), _SOURCE,
         )
         for row in df.to_dicts()
     ]

@@ -40,9 +40,25 @@ def latest_silver_date(s3_client) -> date:
 
 
 def read_silver(s3_client, day: date) -> pl.DataFrame:
-    key = f"silver/autos_usados/{day.isoformat()}.parquet"
-    resp = s3_client.get_object(Bucket=SILVER_BUCKET, Key=key)
-    return pl.read_parquet(io.BytesIO(resp["Body"].read()))
+    def _read(key: str) -> pl.DataFrame | None:
+        try:
+            resp = s3_client.get_object(Bucket=SILVER_BUCKET, Key=key)
+            return pl.read_parquet(io.BytesIO(resp["Body"].read()))
+        except s3_client.exceptions.NoSuchKey:
+            return None
+
+    dr = _read(f"silver/autos_usados/{day.isoformat()}.parquet")
+    ml = _read(f"silver/ml_autos_usados/{day.isoformat()}.parquet")
+
+    if dr is None:
+        raise FileNotFoundError(f"No hay silver de DeRuedas para {day}")
+
+    if ml is not None:
+        print(f"  → DeRuedas: {len(dr)} filas | MercadoLibre: {len(ml)} filas")
+        return pl.concat([dr, ml], how="diagonal")
+
+    print(f"  → DeRuedas: {len(dr)} filas (sin silver ML para {day})")
+    return dr
 
 
 def get_dolar_blue(day: date) -> float | None:
