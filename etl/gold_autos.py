@@ -123,8 +123,9 @@ def build_features(df: pl.DataFrame, dolar_blue: float | None, day: date) -> pl.
         pl.lit(dolar_blue).alias("dolar_blue_venta")
     )
 
-    # 5. Columnas finales — solo lo que el modelo necesita
+    # 5. Columnas finales — cod es el identificador para el scoring, no es feature del modelo
     return df.select([
+        "cod",
         "marca",
         "modelo",
         "provincia",
