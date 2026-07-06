@@ -13,32 +13,32 @@ TasaJusta estimates the fair market price of a used vehicle based on real listin
 - **Price estimator** — Enter make, model, year, mileage, and province. A LightGBM model trained on real listings returns the estimated market price in ARS and USD (blue rate).
 - **Opportunity detector** — Listings priced more than 10% below the model's estimate are flagged as buying opportunities.
 - **Blue-dollar cross** — Every estimate includes the USD equivalent at the current informal exchange rate — a signal unique to the Argentine market.
-- **Weekly pipeline** — A GitHub Actions cron scrapes DeRuedas weekly, retrains the model, and scores all listings automatically.
+- **Dual data source** — Listings from DeRuedas (scraped weekly) and MercadoLibre (via official API, refreshed daily Mon–Fri).
+- **Weekly + daily pipeline** — DeRuedas scrapes every Sunday; MercadoLibre runs every weekday and retrains the model with fresh data.
 
 ---
 
 ## Architecture
 
 ```
-DeRuedas ──────────────────────────── ETL Pipeline (GitHub Actions — weekly)
-                                                │
-  scrape_deruedas.py ──► S3 bronze (raw JSON)  │
-         │                                      │
-  transform_autos.py ──► S3 silver (Parquet)   │
-         │                                      │
-    load_autos.py ──► Supabase (PostgreSQL)     │
-         │                                      │
-    gold_autos.py ──► S3 gold (ML features)    │
-         │                                      │
-   train_lgbm.py ──► S3 models (.pkl)          │
-         │                                      │
-   score_autos.py ──► Supabase (scores)        │
-                            │
-                      AWS Lambda
-                   (FastAPI + LightGBM)
-                            │
-                     Next.js (Vercel)
-                      [frontend]
+DeRuedas (weekly) ──► scrape_deruedas.py ──► S3 bronze
+                                                  │
+MercadoLibre (daily) ──► extract_ml_autos.py ──► S3 bronze
+                                                  │
+                              transform_*.py ──► S3 silver (Parquet)
+                                                  │
+                               load_autos.py ──► Supabase (source column)
+                                                  │
+                               gold_autos.py ──► S3 gold (merged features)
+                                                  │
+                              train_lgbm.py ──► S3 models (.pkl)
+                                                  │
+                              score_autos.py ──► Supabase (scores)
+                                                  │
+                                           AWS Lambda
+                                        (FastAPI + LightGBM)
+                                                  │
+                                          Next.js (Vercel)
 
 bluelytics.com.ar ──► extract_dolar.py ──► Supabase (daily)
 ```
@@ -65,9 +65,11 @@ bluelytics.com.ar ──► extract_dolar.py ──► Supabase (daily)
 
 | Layer | Location | What it contains |
 |-------|----------|-----------------|
-| **Bronze** | `s3://tasajusta-datalake/vehiculos_usados/YYYY-MM-DD.json` | Raw scrape output — 3 vehicle segments, all 23 Argentine provinces |
-| **Silver** | `s3://tasajusta-datalake/silver/autos_usados/YYYY-MM-DD.parquet` | Cleaned Parquet: nulled-out zero prices, deduplication by listing ID |
-| **Gold** | `s3://tasajusta-datalake/gold/autos_usados/YYYY-MM-DD.parquet` | ML-ready features: `antiguedad`, `km_por_anio`, `dolar_blue_venta` |
+| **Bronze** | `s3://…/vehiculos_usados/YYYY-MM-DD.json` | Raw DeRuedas scrape — 3 segments, 23 provinces |
+| **Bronze** | `s3://…/ml_autos_usados/YYYY-MM-DD.json` | Raw MercadoLibre API response — 10 brands, ARS only |
+| **Silver** | `s3://…/silver/autos_usados/YYYY-MM-DD.parquet` | Cleaned DeRuedas: nulled zeros, dedup by listing ID |
+| **Silver** | `s3://…/silver/ml_autos_usados/YYYY-MM-DD.parquet` | Cleaned ML listings (same schema) |
+| **Gold** | `s3://…/gold/autos_usados/YYYY-MM-DD.parquet` | Both sources merged + ML features: `antiguedad`, `km_por_anio`, `dolar_blue_venta` |
 
 ---
 
@@ -120,8 +122,10 @@ Vercel
 | Workflow | Trigger | Steps |
 |----------|---------|-------|
 | `etl-dolar.yml` | Daily 09:00 ART | Fetch blue rate → Supabase |
-| `etl-vehiculos.yml` | Weekly Sun 03:00 ART | Scrape → Transform → Load → Gold → Train → Score |
+| `etl-vehiculos.yml` | Weekly Sun 03:00 ART | Scrape DeRuedas → Transform → Load → Gold → Train → Score |
+| `etl-ml-autos.yml` | Mon–Fri 07:00 ART + manual | Extract ML API → Transform → Load → Gold → Train → Score |
 | `retrain.yml` | Manual (`workflow_dispatch`) | Gold → Train → Score (reuses existing S3 data) |
+| `deploy-lambda.yml` | Push to `api/**` + manual | Build Docker → Push ECR → Update Lambda |
 
 Authentication uses **OIDC** — GitHub Actions assumes an IAM role via federated identity. No AWS access keys stored as secrets.
 
@@ -181,8 +185,10 @@ tasajusta/
 ├── etl/
 │   ├── scrape_deruedas.py    # scraper — 3 segments, 23 provinces, Crawl-delay: 5s
 │   ├── transform_autos.py    # bronze → silver (clean + deduplicate)
-│   ├── load_autos.py         # silver → Supabase (REST API upsert)
-│   ├── gold_autos.py         # silver → gold (feature engineering)
+│   ├── load_autos.py         # silver → Supabase (source-aware upsert)
+│   ├── gold_autos.py         # silver → gold (merges DeRuedas + ML)
+│   ├── extract_ml_autos.py   # MercadoLibre API — OAuth + paginate per brand
+│   ├── transform_ml_autos.py # ML bronze → silver (reuses transform_autos logic)
 │   ├── extract_dolar.py      # blue-dollar rate fetch
 │   ├── transform_dolar.py    # dolar bronze → silver
 │   ├── load_dolar.py         # dolar silver → Supabase
