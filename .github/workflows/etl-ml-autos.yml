@@ -37,9 +37,7 @@ jobs:
 
       - name: Extract MercadoLibre → bronze
         env:
-          MINIO_BUCKET:     tasajusta-datalake-966940665955
-          ML_CLIENT_ID:     ${{ secrets.ML_CLIENT_ID }}
-          ML_CLIENT_SECRET: ${{ secrets.ML_CLIENT_SECRET }}
+          MINIO_BUCKET: tasajusta-datalake-966940665955
         run: python -m etl.extract_ml_autos
 
       - name: Transform ML bronze → silver

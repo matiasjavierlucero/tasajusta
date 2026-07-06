@@ -20,9 +20,7 @@ from etl.infra import get_s3_client
 
 load_dotenv()
 
-ML_CLIENT_ID     = os.getenv("ML_CLIENT_ID")
-ML_CLIENT_SECRET = os.getenv("ML_CLIENT_SECRET")
-BRONZE_BUCKET    = os.getenv("MINIO_BUCKET", "tasajusta-bronze")
+BRONZE_BUCKET = os.getenv("MINIO_BUCKET", "tasajusta-bronze")
 
 ML_BASE_URL = "https://api.mercadolibre.com"
 CATEGORY    = "MLA1743"  # Autos y Camionetas — Argentina
@@ -34,29 +32,15 @@ MARCAS_TARGET = {
 }
 
 
-def get_token(client: httpx.Client) -> str:
-    resp = client.post(
-        f"{ML_BASE_URL}/oauth/token",
-        data={
-            "grant_type":    "client_credentials",
-            "client_id":     ML_CLIENT_ID,
-            "client_secret": ML_CLIENT_SECRET,
-        },
-        timeout=15,
-    )
-    resp.raise_for_status()
-    return resp.json()["access_token"]
-
-
-def get_brand_filter_ids(token: str, client: httpx.Client) -> dict[str, str]:
+def get_brand_filter_ids(client: httpx.Client) -> dict[str, str]:
     """
     Hace una búsqueda mínima para obtener los filter IDs de cada marca.
-    ML devuelve available_filters con name→id en el primer resultado.
+    El search de ML es público — no requiere autenticación.
     Retorna {nombre_marca: filter_id} solo para las marcas que nos interesan.
     """
     resp = client.get(
         f"{ML_BASE_URL}/sites/MLA/search",
-        params={"category": CATEGORY, "limit": 1, "access_token": token},
+        params={"category": CATEGORY, "limit": 1},
         timeout=15,
     )
     resp.raise_for_status()
@@ -71,7 +55,7 @@ def get_brand_filter_ids(token: str, client: httpx.Client) -> dict[str, str]:
     return {}
 
 
-def fetch_brand_listings(brand_id: str, token: str, client: httpx.Client) -> list[dict]:
+def fetch_brand_listings(brand_id: str, client: httpx.Client) -> list[dict]:
     """Pagina todos los listings de una marca hasta el límite de 1000 de la API."""
     results: list[dict] = []
     limit = 50
@@ -80,11 +64,10 @@ def fetch_brand_listings(brand_id: str, token: str, client: httpx.Client) -> lis
         resp = client.get(
             f"{ML_BASE_URL}/sites/MLA/search",
             params={
-                "category":     CATEGORY,
-                "BRAND":        brand_id,
-                "limit":        limit,
-                "offset":       offset,
-                "access_token": token,
+                "category": CATEGORY,
+                "BRAND":    brand_id,
+                "limit":    limit,
+                "offset":   offset,
             },
             timeout=15,
         )
@@ -155,10 +138,7 @@ def run(day: date | None = None) -> None:
     s3     = get_s3_client()
     client = httpx.Client()
 
-    token = get_token(client)
-    print("  → Token obtenido.")
-
-    brand_ids = get_brand_filter_ids(token, client)
+    brand_ids = get_brand_filter_ids(client)
     marcas_encontradas = list(brand_ids.keys())
     marcas_faltantes   = MARCAS_TARGET - set(marcas_encontradas)
     print(f"  → Marcas encontradas en ML: {marcas_encontradas}")
@@ -169,7 +149,7 @@ def run(day: date | None = None) -> None:
 
     for marca_nombre, brand_id in brand_ids.items():
         print(f"  → {marca_nombre}...", end=" ", flush=True)
-        raw    = fetch_brand_listings(brand_id, token, client)
+        raw    = fetch_brand_listings(brand_id, client)
         parsed = [p for item in raw if (p := parse_item(item)) is not None]
         print(f"{len(parsed)} listings ARS (de {len(raw)} totales)")
         all_items.extend(parsed)
