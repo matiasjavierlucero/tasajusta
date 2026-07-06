@@ -33,8 +33,9 @@ jobs:
 
       - name: Gold silver → gold (feature engineering)
         env:
-          MINIO_BUCKET: tasajusta-datalake-966940665955
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          MINIO_BUCKET:         tasajusta-datalake-966940665955
+          SUPABASE_URL:         https://rcmxwfmemhvjynorrpnd.supabase.co
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: python -m etl.gold_autos
 
       - name: Entrenar modelo LightGBM → S3

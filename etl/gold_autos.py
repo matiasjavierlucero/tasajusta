@@ -15,15 +15,19 @@ import io
 import os
 from datetime import date
 
+import httpx
 import polars as pl
 from dotenv import load_dotenv
 
-from etl.infra import get_pg_connection, get_s3_client
+from etl.infra import get_s3_client
 
 load_dotenv()
 
-SILVER_BUCKET = os.getenv("MINIO_BUCKET", "tasajusta-bronze")
-GOLD_BUCKET   = os.getenv("MINIO_BUCKET", "tasajusta-bronze")
+SILVER_BUCKET  = os.getenv("MINIO_BUCKET", "tasajusta-bronze")
+GOLD_BUCKET    = os.getenv("MINIO_BUCKET", "tasajusta-bronze")
+SUPABASE_URL   = os.getenv("SUPABASE_URL")
+SUPABASE_KEY   = os.getenv("SUPABASE_SERVICE_KEY")
+DATABASE_URL   = os.getenv("DATABASE_URL")
 
 
 def read_silver(s3_client, day: date) -> pl.DataFrame:
@@ -32,14 +36,31 @@ def read_silver(s3_client, day: date) -> pl.DataFrame:
     return pl.read_parquet(io.BytesIO(resp["Body"].read()))
 
 
-def get_dolar_blue(conn, day: date) -> float | None:
-    """Devuelve la cotización blue de venta del día, o None si no hay datos."""
-    with conn.cursor() as cur:
-        cur.execute(
-            "SELECT venta FROM cotizaciones_dolar WHERE fecha = %s AND casa = 'blue'",
-            (day,),
+def get_dolar_blue(day: date) -> float | None:
+    """Devuelve la cotización blue de venta del día.
+
+    Usa REST API cuando está disponible (GitHub Actions), psycopg2 en dev local.
+    """
+    if SUPABASE_URL and SUPABASE_KEY:
+        resp = httpx.get(
+            f"{SUPABASE_URL}/rest/v1/cotizaciones_dolar",
+            headers={"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"},
+            params={"fecha": f"eq.{day.isoformat()}", "casa": "eq.blue", "select": "venta"},
+            timeout=10,
         )
-        row = cur.fetchone()
+        resp.raise_for_status()
+        rows = resp.json()
+        return float(rows[0]["venta"]) if rows else None
+
+    # Dev local — conexión directa a Postgres
+    from etl.infra import get_pg_connection
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT venta FROM cotizaciones_dolar WHERE fecha = %s AND casa = 'blue'",
+                (day,),
+            )
+            row = cur.fetchone()
     return float(row[0]) if row else None
 
 
@@ -126,14 +147,12 @@ def run(day: date | None = None) -> None:
     day = day or date.today()
     print(f"Feature engineering gold — {day}...")
 
-    s3   = get_s3_client()
-    conn = get_pg_connection()
+    s3 = get_s3_client()
 
     df = read_silver(s3, day)
     print(f"  → Silver leído: {len(df)} filas.")
 
-    dolar = get_dolar_blue(conn, day)
-    conn.close()
+    dolar = get_dolar_blue(day)
     if dolar is None:
         print("  ⚠ Sin cotización blue para hoy — dolar_blue_venta = null.")
     else:
