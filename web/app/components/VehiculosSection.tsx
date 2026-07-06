@@ -18,12 +18,14 @@ export default async function VehiculosSection() {
 
   return (
     <section>
-      <div className="flex items-center gap-3 mb-4">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-500">
-          Vehículos en el mercado
-        </h2>
-        <div className="flex-1 h-px bg-gray-800" />
-        <span className="text-xs text-gray-600">{autos.length} publicaciones</span>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">Vehículos en el mercado</h2>
+          <p className="text-sm text-slate-500 mt-0.5">Publicaciones actuales de DeRuedas</p>
+        </div>
+        <span className="text-xs text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
+          {autos.length} publicaciones
+        </span>
       </div>
       <AutosTable autos={autos} marcas={marcas} provincias={provincias} />
     </section>

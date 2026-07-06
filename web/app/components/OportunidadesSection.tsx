@@ -32,18 +32,18 @@ export default async function OportunidadesSection() {
   if (!oportunidades.length) return null;
 
   return (
-    <section className="mb-10">
-      <div className="flex items-center gap-3 mb-4">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-500">
-          Oportunidades del mercado
-        </h2>
-        <div className="flex-1 h-px bg-gray-800" />
-        <span className="text-xs text-gray-600">
-          publicaciones por debajo del precio estimado
+    <section>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">Oportunidades del mercado</h2>
+          <p className="text-sm text-slate-500 mt-0.5">Publicaciones más de 10% por debajo del precio estimado</p>
+        </div>
+        <span className="text-xs font-semibold text-sage-700 bg-sage-50 border border-sage-200 px-2.5 py-1 rounded-full">
+          {oportunidades.length} encontradas
         </span>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {oportunidades.map((auto) => {
           const ahorro = auto.precio_estimado - auto.precio_ars;
           const pct    = Math.round(auto.oportunidad_score * 100);
@@ -54,42 +54,40 @@ export default async function OportunidadesSection() {
               href={`https://www.deruedas.com.ar${auto.url}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="group block rounded-xl border border-gray-800 bg-gray-900/40
-                         hover:border-emerald-700/60 hover:bg-emerald-950/20 transition-colors p-4"
+              className="group block rounded-xl border border-slate-200 bg-white
+                         hover:shadow-md hover:border-brand-300 transition-all p-5"
             >
               {/* Encabezado */}
-              <div className="flex items-start justify-between gap-2 mb-3">
+              <div className="flex items-start justify-between gap-2 mb-4">
                 <div>
-                  <p className="text-sm font-semibold text-white leading-tight">
+                  <p className="font-semibold text-slate-900">
                     {auto.marca} {auto.modelo}
                   </p>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="text-xs text-slate-400 mt-0.5">
                     {auto.anio} · {auto.provincia}
                   </p>
                 </div>
-                {/* Badge de descuento */}
-                <span className="shrink-0 text-xs font-bold px-2 py-1 rounded-full
-                                 bg-emerald-900/60 text-emerald-300 border border-emerald-800/60">
+                {/* Badge verde = oportunidad de compra, alineado con ícono */}
+                <span className="shrink-0 text-xs font-bold px-2.5 py-1 rounded-full bg-sage-500 text-white">
                   −{pct}%
                 </span>
               </div>
 
-              {/* Precios */}
-              <div className="flex items-end gap-3">
+              {/* Comparación de precios */}
+              <div className="flex items-end justify-between border-t border-slate-100 pt-4">
                 <div>
-                  <p className="text-[10px] text-gray-600 mb-0.5">Publicado</p>
-                  <p className="text-lg font-bold text-white">${fmt(auto.precio_ars)}</p>
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">Publicado</p>
+                  <p className="text-lg font-bold text-slate-900">${fmt(auto.precio_ars)}</p>
                 </div>
-                <div className="text-gray-700 pb-0.5">→</div>
-                <div>
-                  <p className="text-[10px] text-gray-600 mb-0.5">Estimado</p>
-                  <p className="text-lg font-semibold text-emerald-400">${fmt(auto.precio_estimado)}</p>
+                <div className="text-slate-300 pb-1 text-lg">→</div>
+                <div className="text-right">
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">Estimado</p>
+                  <p className="text-lg font-bold text-sage-600">${fmt(auto.precio_estimado)}</p>
                 </div>
               </div>
 
-              {/* Ahorro */}
-              <p className="text-xs text-gray-500 mt-2 border-t border-gray-800/60 pt-2">
-                ${fmt(ahorro)} por debajo del mercado
+              <p className="text-xs text-slate-500 mt-3 pt-2 border-t border-slate-100">
+                Ahorro estimado: <span className="font-semibold text-sage-600">${fmt(ahorro)}</span>
               </p>
             </a>
           );

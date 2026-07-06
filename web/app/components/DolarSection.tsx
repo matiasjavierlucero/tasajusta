@@ -1,7 +1,6 @@
 import { supabase, type CotizacionDolar } from "@/lib/supabase";
 
 async function getDolar(): Promise<CotizacionDolar[]> {
-  // Get the latest date available, then fetch only that day's cotizaciones
   const { data: latest } = await supabase
     .from("cotizaciones_dolar")
     .select("fecha")
@@ -34,46 +33,45 @@ export default async function DolarSection() {
   if (!cotizaciones.length) return null;
 
   return (
-    <section className="mb-10">
-      <div className="flex items-center gap-3 mb-4">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-500">
-          Cotizaciones del dólar
-        </h2>
-        <div className="flex-1 h-px bg-gray-800" />
-        <span className="text-xs text-gray-600">{cotizaciones[0]?.fecha}</span>
+    <section>
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="text-xl font-bold text-slate-900">Cotizaciones del dólar</h2>
+        <span className="text-xs text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full">
+          {cotizaciones[0]?.fecha}
+        </span>
       </div>
 
       <div className="flex flex-wrap gap-3">
-        {/* Blue y Oficial — chips destacados */}
+        {/* Blue y Oficial — tarjetas destacadas */}
         {featured.map((c) => (
           <div
             key={c.casa}
-            className="flex items-center gap-4 rounded-lg px-4 py-3 border border-emerald-900/60 bg-emerald-950/30"
+            className="flex items-center gap-5 rounded-xl px-5 py-4 border-2 border-brand-500 bg-brand-50 min-w-[170px]"
           >
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-emerald-400 mb-0.5">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-brand-500 mb-1">
                 {c.nombre}
               </p>
-              <p className="text-xl font-bold text-white leading-none">
+              <p className="text-2xl font-bold text-slate-900 leading-none">
                 ${fmt(c.venta)}
               </p>
             </div>
-            <div className="text-right border-l border-emerald-900/50 pl-4">
-              <p className="text-[10px] text-gray-500 mb-0.5">compra</p>
-              <p className="text-sm font-semibold text-gray-300">${fmt(c.compra)}</p>
+            <div className="text-right border-l border-brand-200 pl-4">
+              <p className="text-[10px] text-slate-400 mb-1">compra</p>
+              <p className="text-sm font-semibold text-slate-600">${fmt(c.compra)}</p>
             </div>
           </div>
         ))}
 
-        {/* Resto — pills compactos */}
+        {/* Resto — pills */}
         {rest.map((c) => (
           <div
             key={c.casa}
-            className="flex items-center gap-2 rounded-lg px-3 py-2.5 border border-gray-800 bg-gray-900/40"
+            className="flex items-center gap-2 rounded-xl px-4 py-3 border border-slate-200 bg-white min-w-[120px]"
           >
             <div>
-              <p className="text-[10px] text-gray-500 uppercase tracking-wide">{c.nombre}</p>
-              <p className="text-sm font-bold text-gray-200">${fmt(c.venta)}</p>
+              <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">{c.nombre}</p>
+              <p className="text-base font-bold text-slate-800">${fmt(c.venta)}</p>
             </div>
           </div>
         ))}

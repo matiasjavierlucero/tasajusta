@@ -57,11 +57,11 @@ type PredictResult = {
 };
 
 const selectCls =
-  "w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-gray-100 " +
-  "focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 " +
+  "w-full bg-white border border-slate-300 rounded-lg px-3 py-2.5 text-sm text-slate-900 " +
+  "focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 " +
   "disabled:opacity-40 disabled:cursor-not-allowed transition-colors";
 
-const labelCls = "block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5";
+const labelCls = "block text-xs font-semibold text-slate-600 mb-1.5";
 
 export default function PredictForm() {
   const [marca,     setMarca]     = useState("");
@@ -120,13 +120,12 @@ export default function PredictForm() {
     : null;
 
   return (
-    <div className="rounded-2xl border border-gray-800 bg-gray-900/60 overflow-hidden">
-
+    <div>
       {/* Título del formulario */}
-      <div className="px-6 py-5 border-b border-gray-800 bg-gradient-to-r from-emerald-950/40 to-gray-900/40">
+      <div className="px-6 py-5 border-b border-slate-200 bg-brand-500">
         <h3 className="text-base font-semibold text-white">Cotizá tu auto</h3>
-        <p className="text-sm text-gray-500 mt-0.5">
-          El modelo estima el precio justo según las publicaciones actuales del mercado.
+        <p className="text-sm text-brand-100 mt-0.5">
+          Estimación basada en publicaciones reales del mercado.
         </p>
       </div>
 
@@ -204,10 +203,9 @@ export default function PredictForm() {
               type="submit"
               disabled={!valid || loading}
               className="w-full py-2.5 px-4 rounded-lg text-sm font-semibold transition-all
-                bg-gradient-to-r from-emerald-600 to-cyan-600
-                hover:from-emerald-500 hover:to-cyan-500
+                bg-brand-500 hover:bg-brand-600 active:bg-brand-700
                 disabled:opacity-40 disabled:cursor-not-allowed
-                text-white shadow-lg shadow-emerald-900/30"
+                text-white shadow-sm"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -224,43 +222,43 @@ export default function PredictForm() {
 
         {/* Error */}
         {error && (
-          <div className="mt-5 p-4 rounded-lg border border-red-800/60 bg-red-950/30 text-sm text-red-400">
+          <div className="mt-5 p-4 rounded-lg border border-red-200 bg-red-50 text-sm text-red-700">
             {error}
           </div>
         )}
 
         {/* Resultado */}
         {result && (
-          <div className="mt-6 rounded-xl border border-emerald-800/50 bg-gradient-to-br from-emerald-950/50 to-gray-900 p-5">
-            <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400 mb-3">
+          <div className="mt-6 rounded-xl border border-brand-200 bg-brand-50 p-5">
+            <p className="text-xs font-semibold text-brand-600 uppercase tracking-wide mb-3">
               Precio estimado — {result.modelo_usado?.split("_").slice(-1)[0] ?? "hoy"}
             </p>
 
             {/* Precio principal */}
-            <p className="text-4xl font-bold text-white">
+            <p className="text-4xl font-bold text-slate-900">
               ${result.precio_estimado_ars.toLocaleString("es-AR")}
             </p>
-            <p className="text-sm text-gray-500 mt-1">pesos argentinos</p>
+            <p className="text-sm text-slate-500 mt-1">pesos argentinos</p>
 
             {/* Precio en USD */}
             {precioUSD && (
               <div className="mt-4 flex items-center gap-3">
-                <div className="h-px flex-1 bg-gray-800" />
+                <div className="h-px flex-1 bg-brand-200" />
                 <div className="text-center">
-                  <p className="text-xl font-semibold text-cyan-400">
+                  <p className="text-xl font-semibold text-brand-600">
                     u$s {precioUSD.toLocaleString("es-AR")}
                   </p>
-                  <p className="text-xs text-gray-600 mt-0.5">
+                  <p className="text-xs text-slate-500 mt-0.5">
                     al blue ${result.dolar_blue_venta?.toLocaleString("es-AR")}
                   </p>
                 </div>
-                <div className="h-px flex-1 bg-gray-800" />
+                <div className="h-px flex-1 bg-brand-200" />
               </div>
             )}
 
             {/* Advertencia */}
             {result.advertencia && (
-              <p className="mt-4 text-xs text-amber-400/80 border-t border-gray-800 pt-3">
+              <p className="mt-4 text-xs text-amber-700 border-t border-brand-200 pt-3">
                 ⚠ {result.advertencia}
               </p>
             )}
