@@ -1,10 +1,22 @@
 import { supabase, type CotizacionDolar } from "@/lib/supabase";
 
 async function getDolar(): Promise<CotizacionDolar[]> {
+  // Get the latest date available, then fetch only that day's cotizaciones
+  const { data: latest } = await supabase
+    .from("cotizaciones_dolar")
+    .select("fecha")
+    .order("fecha", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (!latest) return [];
+
   const { data } = await supabase
     .from("cotizaciones_dolar")
     .select("fecha, casa, nombre, compra, venta")
+    .eq("fecha", latest.fecha)
     .order("venta", { ascending: false });
+
   return data ?? [];
 }
 
