@@ -56,8 +56,7 @@ def get_brand_filter_ids(token: str, client: httpx.Client) -> dict[str, str]:
     """
     resp = client.get(
         f"{ML_BASE_URL}/sites/MLA/search",
-        params={"category": CATEGORY, "limit": 1},
-        headers={"Authorization": f"Bearer {token}"},
+        params={"category": CATEGORY, "limit": 1, "access_token": token},
         timeout=15,
     )
     resp.raise_for_status()
@@ -81,12 +80,12 @@ def fetch_brand_listings(brand_id: str, token: str, client: httpx.Client) -> lis
         resp = client.get(
             f"{ML_BASE_URL}/sites/MLA/search",
             params={
-                "category": CATEGORY,
-                "BRAND":    brand_id,
-                "limit":    limit,
-                "offset":   offset,
+                "category":     CATEGORY,
+                "BRAND":        brand_id,
+                "limit":        limit,
+                "offset":       offset,
+                "access_token": token,
             },
-            headers={"Authorization": f"Bearer {token}"},
             timeout=15,
         )
         resp.raise_for_status()
