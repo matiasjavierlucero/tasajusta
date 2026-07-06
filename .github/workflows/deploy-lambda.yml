@@ -7,6 +7,7 @@ on:
       - "api/**"
       - "requirements/lambda.txt"
       - "lambda.Dockerfile"
+  workflow_dispatch:
 
 permissions:
   id-token: write
