@@ -40,28 +40,42 @@ def latest_silver_date(s3_client) -> date:
 
 
 def read_silver(s3_client, day: date) -> pl.DataFrame:
-    def _read(prefix: str) -> pl.DataFrame | None:
+    # DeRuedas corre los domingos, Kavak los días de semana.
+    # Cada fuente busca su silver más reciente — no requieren la misma fecha.
+    def _read_latest(prefix: str, preferred_day: date) -> pl.DataFrame | None:
+        # 1. Intentar el día exacto
+        key = f"{prefix}/{preferred_day.isoformat()}.parquet"
         try:
-            resp = s3_client.get_object(Bucket=SILVER_BUCKET, Key=f"{prefix}/{day.isoformat()}.parquet")
+            resp = s3_client.get_object(Bucket=SILVER_BUCKET, Key=key)
             return pl.read_parquet(io.BytesIO(resp["Body"].read()))
-        except s3_client.exceptions.NoSuchKey:
+        except Exception:
+            pass
+        # 2. Fallback al archivo más reciente disponible
+        try:
+            listing = s3_client.list_objects_v2(Bucket=SILVER_BUCKET, Prefix=f"{prefix}/")
+            keys = sorted(
+                o["Key"] for o in listing.get("Contents", [])
+                if o["Key"].endswith(".parquet")
+            )
+            if not keys:
+                return None
+            resp = s3_client.get_object(Bucket=SILVER_BUCKET, Key=keys[-1])
+            return pl.read_parquet(io.BytesIO(resp["Body"].read()))
+        except Exception:
             return None
 
-    sources = {
-        "deruedas": _read("silver/autos_usados"),
-        "kavak":    _read("silver/kavak_autos"),
-    }
+    dr = _read_latest("silver/autos_usados", day)
+    kv = _read_latest("silver/kavak_autos",  day)
 
-    available = {name: df for name, df in sources.items() if df is not None}
+    if dr is None:
+        raise FileNotFoundError("No hay silver de DeRuedas disponible")
 
-    if "deruedas" not in available:
-        raise FileNotFoundError(f"No hay silver de DeRuedas para {day}")
+    if kv is not None:
+        print(f"  → DeRuedas: {len(dr)} filas | Kavak: {len(kv)} filas")
+        return pl.concat([dr, kv], how="diagonal")
 
-    counts = " | ".join(f"{name}: {len(df)} filas" for name, df in available.items())
-    print(f"  → {counts}")
-
-    frames = list(available.values())
-    return pl.concat(frames, how="diagonal") if len(frames) > 1 else frames[0]
+    print(f"  → DeRuedas: {len(dr)} filas (sin silver Kavak)")
+    return dr
 
 
 def get_dolar_blue(day: date) -> float | None:
