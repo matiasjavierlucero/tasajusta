@@ -40,25 +40,28 @@ def latest_silver_date(s3_client) -> date:
 
 
 def read_silver(s3_client, day: date) -> pl.DataFrame:
-    def _read(key: str) -> pl.DataFrame | None:
+    def _read(prefix: str) -> pl.DataFrame | None:
         try:
-            resp = s3_client.get_object(Bucket=SILVER_BUCKET, Key=key)
+            resp = s3_client.get_object(Bucket=SILVER_BUCKET, Key=f"{prefix}/{day.isoformat()}.parquet")
             return pl.read_parquet(io.BytesIO(resp["Body"].read()))
         except s3_client.exceptions.NoSuchKey:
             return None
 
-    dr = _read(f"silver/autos_usados/{day.isoformat()}.parquet")
-    ml = _read(f"silver/ml_autos_usados/{day.isoformat()}.parquet")
+    sources = {
+        "deruedas": _read("silver/autos_usados"),
+        "kavak":    _read("silver/kavak_autos"),
+    }
 
-    if dr is None:
+    available = {name: df for name, df in sources.items() if df is not None}
+
+    if "deruedas" not in available:
         raise FileNotFoundError(f"No hay silver de DeRuedas para {day}")
 
-    if ml is not None:
-        print(f"  → DeRuedas: {len(dr)} filas | MercadoLibre: {len(ml)} filas")
-        return pl.concat([dr, ml], how="diagonal")
+    counts = " | ".join(f"{name}: {len(df)} filas" for name, df in available.items())
+    print(f"  → {counts}")
 
-    print(f"  → DeRuedas: {len(dr)} filas (sin silver ML para {day})")
-    return dr
+    frames = list(available.values())
+    return pl.concat(frames, how="diagonal") if len(frames) > 1 else frames[0]
 
 
 def get_dolar_blue(day: date) -> float | None:

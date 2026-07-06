@@ -13,8 +13,8 @@ TasaJusta estimates the fair market price of a used vehicle based on real listin
 - **Price estimator** — Enter make, model, year, mileage, and province. A LightGBM model trained on real listings returns the estimated market price in ARS and USD (blue rate).
 - **Opportunity detector** — Listings priced more than 10% below the model's estimate are flagged as buying opportunities.
 - **Blue-dollar cross** — Every estimate includes the USD equivalent at the current informal exchange rate — a signal unique to the Argentine market.
-- **Dual data source** — Listings from DeRuedas (scraped weekly) and MercadoLibre (via official API, refreshed daily Mon–Fri).
-- **Weekly + daily pipeline** — DeRuedas scrapes every Sunday; MercadoLibre runs every weekday and retrains the model with fresh data.
+- **Dual data source** — Listings from DeRuedas (scraped weekly) and Kavak (scraped daily Mon–Fri).
+- **Weekly + daily pipeline** — DeRuedas scrapes every Sunday; Kavak runs every weekday and retrains the model with fresh data.
 
 ---
 
@@ -23,7 +23,7 @@ TasaJusta estimates the fair market price of a used vehicle based on real listin
 ```
 DeRuedas (weekly) ──► scrape_deruedas.py ──► S3 bronze
                                                   │
-MercadoLibre (daily) ──► extract_ml_autos.py ──► S3 bronze
+Kavak (daily) ──────► scrape_kavak.py ──────► S3 bronze
                                                   │
                               transform_*.py ──► S3 silver (Parquet)
                                                   │
@@ -66,9 +66,9 @@ bluelytics.com.ar ──► extract_dolar.py ──► Supabase (daily)
 | Layer | Location | What it contains |
 |-------|----------|-----------------|
 | **Bronze** | `s3://…/vehiculos_usados/YYYY-MM-DD.json` | Raw DeRuedas scrape — 3 segments, 23 provinces |
-| **Bronze** | `s3://…/ml_autos_usados/YYYY-MM-DD.json` | Raw MercadoLibre API response — 10 brands, ARS only |
+| **Bronze** | `s3://…/kavak_autos/YYYY-MM-DD.json` | Raw Kavak scrape — used cars with certified inspection |
 | **Silver** | `s3://…/silver/autos_usados/YYYY-MM-DD.parquet` | Cleaned DeRuedas: nulled zeros, dedup by listing ID |
-| **Silver** | `s3://…/silver/ml_autos_usados/YYYY-MM-DD.parquet` | Cleaned ML listings (same schema) |
+| **Silver** | `s3://…/silver/kavak_autos/YYYY-MM-DD.parquet` | Cleaned Kavak listings (same schema) |
 | **Gold** | `s3://…/gold/autos_usados/YYYY-MM-DD.parquet` | Both sources merged + ML features: `antiguedad`, `km_por_anio`, `dolar_blue_venta` |
 
 ---
@@ -123,7 +123,7 @@ Vercel
 |----------|---------|-------|
 | `etl-dolar.yml` | Daily 09:00 ART | Fetch blue rate → Supabase |
 | `etl-vehiculos.yml` | Weekly Sun 03:00 ART | Scrape DeRuedas → Transform → Load → Gold → Train → Score |
-| `etl-ml-autos.yml` | Mon–Fri 07:00 ART + manual | Extract ML API → Transform → Load → Gold → Train → Score |
+| `etl-kavak.yml` | Mon–Fri 07:00 ART + manual | Scrape Kavak → Transform → Load → Gold → Train → Score |
 | `retrain.yml` | Manual (`workflow_dispatch`) | Gold → Train → Score (reuses existing S3 data) |
 | `deploy-lambda.yml` | Push to `api/**` + manual | Build Docker → Push ECR → Update Lambda |
 
@@ -184,11 +184,11 @@ uvicorn api.main:app --reload
 tasajusta/
 ├── etl/
 │   ├── scrape_deruedas.py    # scraper — 3 segments, 23 provinces, Crawl-delay: 5s
+│   ├── scrape_kavak.py       # scraper — Kavak used cars (daily)
 │   ├── transform_autos.py    # bronze → silver (clean + deduplicate)
+│   ├── transform_kavak.py    # kavak bronze → silver (reuses transform_autos logic)
 │   ├── load_autos.py         # silver → Supabase (source-aware upsert)
-│   ├── gold_autos.py         # silver → gold (merges DeRuedas + ML)
-│   ├── extract_ml_autos.py   # MercadoLibre API — OAuth + paginate per brand
-│   ├── transform_ml_autos.py # ML bronze → silver (reuses transform_autos logic)
+│   ├── gold_autos.py         # silver → gold (merges DeRuedas + Kavak)
 │   ├── extract_dolar.py      # blue-dollar rate fetch
 │   ├── transform_dolar.py    # dolar bronze → silver
 │   ├── load_dolar.py         # dolar silver → Supabase

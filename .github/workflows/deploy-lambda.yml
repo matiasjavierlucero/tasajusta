@@ -49,15 +49,11 @@ jobs:
           docker push $REGISTRY/$ECR_REPOSITORY:latest
           docker push $REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
 
-      - name: Actualizar Lambdas con la nueva imagen
+      - name: Actualizar Lambda con la nueva imagen
         env:
           REGISTRY: ${{ steps.ecr-login.outputs.registry }}
         run: |
           aws lambda update-function-code \
             --function-name $LAMBDA_FUNCTION \
-            --image-uri $REGISTRY/$ECR_REPOSITORY:latest \
-            --region $AWS_REGION
-          aws lambda update-function-code \
-            --function-name tasajusta-etl-ml \
             --image-uri $REGISTRY/$ECR_REPOSITORY:latest \
             --region $AWS_REGION

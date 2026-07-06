@@ -1,5 +1,5 @@
 """
-Load: silver → Supabase para vehículos usados de DeRuedas.
+Load: silver → Supabase para vehículos usados.
 
 Dos estrategias según el entorno:
 - SUPABASE_SERVICE_KEY presente → REST API (HTTPS 443). Funciona desde cualquier red,
@@ -7,6 +7,10 @@ Dos estrategias según el entorno:
 - Sin esa variable → Postgres directo (dev local con Docker).
 
 Idempotencia: ON CONFLICT (cod) DO UPDATE / Prefer: resolution=merge-duplicates.
+
+SOURCE env var controla qué fuente cargar:
+  "deruedas" (default) → silver/autos_usados/
+  "kavak"              → silver/kavak_autos/
 """
 
 import io
@@ -25,11 +29,8 @@ SILVER_BUCKET    = os.getenv("MINIO_BUCKET", "tasajusta-bronze")
 SUPABASE_URL     = os.getenv("SUPABASE_URL")
 SUPABASE_SVC_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 
-# SOURCE controla qué silver leer y qué valor de source guardar en Supabase.
-# "deruedas" (default) → silver/autos_usados/
-# "mercadolibre"       → silver/ml_autos_usados/
 _SOURCE        = os.getenv("SOURCE", "deruedas")
-_SILVER_PREFIX = "silver/ml_autos_usados" if _SOURCE == "mercadolibre" else "silver/autos_usados"
+_SILVER_PREFIX = f"silver/{_SOURCE}_autos" if _SOURCE != "deruedas" else "silver/autos_usados"
 
 
 CREATE_TABLE_SQL = """
