@@ -86,10 +86,11 @@ def upsert_scores(df: pd.DataFrame) -> None:
         print("Sin credenciales Supabase — saltando upsert")
         return
 
-    records = (
-        df[["cod", "precio_estimado", "oportunidad_score"]]
-        .to_dict(orient="records")
-    )
+    # Convertir explícitamente a tipos Python nativos para evitar problemas de serialización
+    subset = df[["cod", "precio_estimado", "oportunidad_score"]].copy()
+    subset["precio_estimado"]  = subset["precio_estimado"].astype(int)
+    subset["oportunidad_score"] = subset["oportunidad_score"].astype(float)
+    records = subset.to_dict(orient="records")
 
     resp = httpx.post(
         f"{SUPABASE_URL}/rest/v1/autos_usados",
@@ -102,6 +103,8 @@ def upsert_scores(df: pd.DataFrame) -> None:
         json=records,
         timeout=60,
     )
+    if not resp.is_success:
+        print(f"Error Supabase {resp.status_code}: {resp.text}")
     resp.raise_for_status()
     print(f"Upsert OK — {len(records)} registros actualizados en Supabase")
 
