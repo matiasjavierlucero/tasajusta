@@ -2,6 +2,7 @@ from datetime import date
 
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 from api.schemas import PredictRequest, PredictResponse
 from ml.train_lgbm import CAT_FEATURES
@@ -12,11 +13,16 @@ router = APIRouter()
 @router.get("/health")
 def health(request: Request):
     state = request.app.state
-    return {
-        "status":    "ok" if state.model else "sin modelo",
-        "model_key": state.model_key,
-        "dolar_blue": state.dolar_blue,
-    }
+    ok = state.model is not None
+    return JSONResponse(
+        status_code=200 if ok else 503,
+        content={
+            "status":     "ok" if ok else "sin modelo",
+            "model_key":  state.model_key,
+            "dolar_blue": state.dolar_blue,
+            "started_at": getattr(state, "started_at", None),
+        },
+    )
 
 
 @router.post("/predict", response_model=PredictResponse)
@@ -51,6 +57,7 @@ def predict(req: PredictRequest, request: Request):
         X[col] = X[col].astype("category")
 
     precio = int(state.model.predict(X)[0])
+    state.predictions_served = getattr(state, "predictions_served", 0) + 1
 
     advertencia = None
     if antiguedad == 0:

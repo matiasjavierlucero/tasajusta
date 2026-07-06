@@ -4,5 +4,6 @@ lightgbm>=4.0
 scikit-learn>=1.5
 pandas>=2.0
 boto3>=1.34
+httpx>=0.27
 psycopg2-binary>=2.9
 python-dotenv>=1.0

@@ -1,13 +1,14 @@
 import os
 import pickle
 from contextlib import asynccontextmanager
-from datetime import date
+from datetime import date, datetime, timezone
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
 
 from etl.infra import get_pg_connection, get_s3_client
 from api.routes.predict import router as predict_router
+from api.routes.metrics import router as metrics_router
 
 load_dotenv()
 
@@ -48,6 +49,9 @@ async def lifespan(app: FastAPI):
     except Exception:
         app.state.dolar_blue = None
 
+    app.state.started_at         = datetime.now(timezone.utc).isoformat()
+    app.state.predictions_served = 0
+
     yield
 
     app.state.model      = None
@@ -63,3 +67,4 @@ app = FastAPI(
 )
 
 app.include_router(predict_router)
+app.include_router(metrics_router)
