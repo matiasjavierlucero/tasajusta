@@ -41,6 +41,7 @@ jobs:
             --function-name tasajusta-kavak \
             --payload '{}' \
             --cli-binary-format raw-in-base64-out \
+            --cli-read-timeout 300 \
             --region us-east-1 \
             response.json
           python3 -c "
