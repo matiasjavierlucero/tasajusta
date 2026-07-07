@@ -91,6 +91,25 @@ score = (precio_estimado − precio_real) / precio_estimado
 ```
 Listings with `score > 0.10` (10%+ below estimated value) are surfaced as opportunities.
 
+### Experiment tracking — MLflow (local)
+
+Each training run logs parameters, metrics, and the model artifact to a local MLflow instance. No server is required — everything is stored in `mlruns/` (gitignored).
+
+```bash
+# Instalar (grupo separado — no va a Lambda ni CI)
+uv sync --group tracking
+
+# Correr entrenamiento (genera mlflow.db automáticamente)
+python -m ml.train_lgbm
+
+# Abrir la UI
+mlflow ui --backend-store-uri sqlite:///mlflow.db
+# → http://localhost:5000
+```
+
+**Why local and not a hosted MLflow server?**
+At this stage the model retrains automatically via GitHub Actions — a dedicated tracking server (EC2 or managed Databricks) would add infrastructure cost and operational overhead for a single-developer project. Local tracking lets you inspect every run's R², MAE, and overfitting gap without spending anything. If the project scales to a team, pointing `MLFLOW_TRACKING_URI` at a remote server requires changing one line.
+
 ---
 
 ## Infrastructure

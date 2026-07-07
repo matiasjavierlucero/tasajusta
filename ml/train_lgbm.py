@@ -11,12 +11,16 @@ import pickle
 from datetime import date
 
 import lightgbm as lgb
+import mlflow
+import mlflow.lightgbm
 import pandas as pd
 from dotenv import load_dotenv
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
 
 from etl.infra import get_s3_client
+
+MLFLOW_DB = os.path.join(os.path.dirname(__file__), "..", "mlflow.db")
 
 load_dotenv()
 
@@ -131,11 +135,33 @@ def run(day: date | None = None) -> dict:
     )
     print(f"Train: {len(X_train)} filas | Test: {len(X_test)} filas\n")
 
-    model = train(X_train, y_train)
+    mlflow.set_tracking_uri(f"sqlite:///{os.path.abspath(MLFLOW_DB)}")
+    mlflow.set_experiment("tasajusta-lgbm")
 
-    # Métricas en train (para detectar overfitting) y test (generalización real)
-    train_metrics = evaluate(model, X_train, y_train)
-    test_metrics  = evaluate(model, X_test, y_test)
+    with mlflow.start_run(run_name=f"lgbm-{day.isoformat()}"):
+        mlflow.log_params({
+            "n_estimators":     300,
+            "num_leaves":       15,
+            "learning_rate":    0.05,
+            "min_child_samples": 5,
+            "subsample":        0.8,
+            "colsample_bytree": 0.8,
+            "train_size":       len(X_train),
+            "test_size":        len(X_test),
+            "gold_date":        day.isoformat(),
+        })
+
+        model = train(X_train, y_train)
+
+        # Métricas en train (para detectar overfitting) y test (generalización real)
+        train_metrics = evaluate(model, X_train, y_train)
+        test_metrics  = evaluate(model, X_test, y_test)
+
+        mlflow.log_metrics({f"train_{k.lower()}": v for k, v in train_metrics.items()})
+        mlflow.log_metrics({f"test_{k.lower()}": v for k, v in test_metrics.items()})
+        mlflow.log_metric("overfitting_gap_mae", test_metrics["MAE"] - train_metrics["MAE"])
+
+        mlflow.lightgbm.log_model(model, "model")
 
     print("── Train metrics ──────────────────────")
     for k, v in train_metrics.items():

@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TasaJusta — Web
 
-## Getting Started
+Next.js 14 App Router frontend for TasaJusta. Deployed automatically on Vercel on every push to `master`.
 
-First, run the development server:
+🔗 **Live:** [tasajusta.vercel.app](https://tasajusta.vercel.app)
+
+---
+
+## Stack
+
+| | |
+|---|---|
+| Framework | Next.js 14 App Router |
+| Styling | Tailwind CSS |
+| Deployment | Vercel (auto-deploy on push to `master`) |
+
+---
+
+## Local development
 
 ```bash
+cd web
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# → http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Architecture notes
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Server Components** fetch data from Supabase directly at request time (listings, blue-dollar rate, opportunities).
+- **`PredictForm`** is a Client Component — it calls `/api/predict`, a Next.js Route Handler that proxies to the Lambda. This avoids exposing the Lambda URL to the browser and sidesteps CORS.
+- **Vercel** serves as the edge layer — no Express server, no Docker container. The Route Handler runs as a Vercel Function.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## Experiment tracking (MLflow)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The ML model that powers the price estimator is tracked with MLflow locally. Each training run records R², MAE, MAPE, and the trained artifact. Not deployed — the Lambda loads the `.pkl` directly from S3.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+# From the repo root:
+uv sync --group tracking
+python -m ml.train_lgbm
+mlflow ui --backend-store-uri sqlite:///mlflow.db  # → http://localhost:5000
+```
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MLflow lives in a separate dependency group (`tracking`) so it doesn't bloat the Lambda image or CI installs. A hosted MLflow server would add infra cost and operational overhead for no benefit at this scale — local tracking is enough to catch regressions between weekly retrains.

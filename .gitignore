@@ -31,3 +31,7 @@ data/
 CLAUDE.md
 
 docs/
+
+# MLflow experiments (local tracking)
+mlflow.db
+mlruns/
