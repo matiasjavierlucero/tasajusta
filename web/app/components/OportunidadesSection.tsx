@@ -51,7 +51,7 @@ export default async function OportunidadesSection() {
           return (
             <a
               key={auto.cod}
-              href={`https://www.deruedas.com.ar${auto.url}`}
+              href={auto.url.startsWith("http") ? auto.url : `https://www.deruedas.com.ar${auto.url}`}
               target="_blank"
               rel="noopener noreferrer"
               className="group block rounded-xl border border-slate-200 bg-white

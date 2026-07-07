@@ -99,7 +99,7 @@ def parse_card(card) -> dict | None:
         "precio_ars": precio_ars,
         "anio":       anio,
         "km":         km,
-        "url":        href,
+        "url":        href if href.startswith("http") else f"{BASE_URL}{href}",
         "segmento":   0,
         "source":     "kavak",
     }
