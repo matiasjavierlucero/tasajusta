@@ -3,17 +3,32 @@
 import { useState } from "react";
 
 // Marcas y modelos conocidos por el modelo ML (los que vio en training)
+// Capitalization debe coincidir exactamente con los valores en Supabase/gold
 const MODELOS_POR_MARCA: Record<string, string[]> = {
-  Chevrolet: ["Aveo", "Captiva", "Celta", "Classic", "Cruze", "Onix", "Tracker"],
-  Citroen:   ["C3", "C3 Aircross", "C4 Cactus", "C4 Grand Picaso", "C4 Lounge"],
-  Fiat:      ["500", "Argo", "Cronos", "Idea", "Nuevo Palio", "Punto", "Siena"],
-  Ford:      ["EcoSport", "Fiesta KD", "Focus", "Ka", "Kuga"],
-  Honda:     ["City", "Civic", "CRV", "Fit", "HR V"],
-  Nissan:    ["Kicks", "March", "Note", "Sentra", "Tiida", "Versa"],
-  Peugeot:   ["2008", "207", "208", "308", "408"],
-  Renault:   ["Clio", "Duster", "Fluence", "Sandero"],
-  Toyota:    ["Corolla", "Corolla Cross", "Etios", "Hilux SW4", "Yaris"],
-  Volkswagen:["Bora", "Fox", "Gol", "Gol Trend", "Golf", "Polo", "Suran", "Taos", "Tiguan", "Vento", "Voyage"],
+  "Alfa Romeo":   ["Mito"],
+  Audi:           ["A1"],
+  Baic:           ["D20", "Eu5"],
+  Bmw:            ["Serie 2"],
+  Chery:          ["QQ", "Tiggo", "Tiggo 2", "Tiggo 2 Pro", "Tiggo 5", "Tiggo 7 Pro"],
+  Chevrolet:      ["Agile", "Aveo", "Captiva", "Celta", "Classic", "Cobalt", "Cruze", "Cruze II", "Equinox", "Joy", "Meriva", "Montana", "Onix", "Onix +", "Prisma", "Spin", "Tracker", "Trailblazer"],
+  Citroen:        ["Basalt", "Berlingo", "C-Elysée", "C3", "C3 Aircross", "C3 Picasso", "C4", "C4 Cactus", "C4 Grand Picaso", "C4 Lounge"],
+  Dodge:          ["Journey"],
+  Ds:             ["Ds 3"],
+  Fiat:           ["500", "500X", "600", "Argo", "Cronos", "Fastback", "Grand Siena", "Idea", "Mobi", "Nuevo Palio", "Palio", "Pulse", "Punto", "Siena", "Strada", "Titano", "Toro"],
+  Ford:           ["Bronco Sport", "EcoSport", "Fiesta", "Fiesta KD", "Fiesta Kinetic Design", "Focus", "Focus III", "Ka", "Kuga", "Maverick", "Mondeo", "Ranger", "Territory"],
+  Honda:          ["City", "Civic", "CRV", "Fit", "HR V", "HR-V"],
+  Hyundai:        ["Creta", "Grand i10", "HB20", "I10", "Tucson"],
+  Jeep:           ["Cherokee", "Commander", "Compass", "Renegade"],
+  Kia:            ["Picanto", "Rio", "Sportage"],
+  "Mercedes Benz":["Clase C", "Clase GLA", "Sprinter", "Vito"],
+  Mitsubishi:     ["Lancer"],
+  Nissan:         ["Frontier", "Kicks", "March", "Note", "Sentra", "Tiida", "Versa"],
+  Peugeot:        ["2008", "206", "207", "208", "3008", "301", "307", "308", "408", "5008", "Partner"],
+  RAM:            ["1500", "Dakota", "Rampage"],
+  Renault:        ["Alaskan", "Captur", "Clio", "Duster", "Duster Oroch", "Fluence", "Kangoo", "Kardian", "Kwid", "Logan", "Sandero", "Sandero Stepway", "Symbol"],
+  Smart:          ["Forfour"],
+  Toyota:         ["C-Hr", "Corolla", "Corolla Cross", "Etios", "Hilux", "Hilux SW4", "Innova", "RAV4", "SW4", "Yaris"],
+  Volkswagen:     ["Amarok", "Bora", "Fox", "Gol", "Gol Trend", "Golf", "Nivus", "Passat", "Polo", "Saveiro", "Suran", "Suran Cross", "T-Cross", "Taos", "Tera", "Tiguan", "Tiguan Allspace", "up", "Vento", "Virtus", "Voyage"],
 };
 
 const PROVINCIAS = [
