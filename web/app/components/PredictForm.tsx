@@ -246,7 +246,12 @@ export default function PredictForm() {
         {result && (
           <div className="mt-6 rounded-xl border border-brand-200 bg-brand-50 p-5">
             <p className="text-xs font-semibold text-brand-600 uppercase tracking-wide mb-3">
-              Precio estimado — {result.modelo_usado?.split("_").slice(-1)[0] ?? "hoy"}
+              Precio estimado al {(() => {
+                const m = result.modelo_usado?.match(/(\d{4}-\d{2}-\d{2})/);
+                return m
+                  ? new Date(m[1] + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })
+                  : "hoy";
+              })()}
             </p>
 
             {/* Precio principal */}

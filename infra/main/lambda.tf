@@ -10,8 +10,8 @@ resource "aws_lambda_function" "predict" {
   # después buildá y pusheá la imagen, y recién entonces `terraform apply` completo.
   image_uri = "${aws_ecr_repository.api.repository_url}:latest"
 
-  memory_size = 512  # LightGBM + pandas necesitan margen
-  timeout     = 30   # cold start incluye carga del modelo desde S3
+  memory_size = 1024  # más vCPU → cold start más rápido con LightGBM
+  timeout     = 90    # cold start + descarga modelo S3 puede tomar ~40s
 
   environment {
     variables = {
