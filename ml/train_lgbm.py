@@ -5,20 +5,26 @@ Lee el gold Parquet, entrena, evalúa y guarda el modelo en MinIO.
 LightGBM maneja variables categóricas de forma nativa — no necesita OHE.
 """
 
+import contextlib
 import io
 import os
 import pickle
 from datetime import date
 
 import lightgbm as lgb
-import mlflow
-import mlflow.lightgbm
 import pandas as pd
 from dotenv import load_dotenv
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
 
 from etl.infra import get_s3_client
+
+try:
+    import mlflow
+    import mlflow.lightgbm
+    MLFLOW_AVAILABLE = True
+except ImportError:
+    MLFLOW_AVAILABLE = False
 
 MLFLOW_DB = os.path.join(os.path.dirname(__file__), "..", "mlflow.db")
 
@@ -135,21 +141,26 @@ def run(day: date | None = None) -> dict:
     )
     print(f"Train: {len(X_train)} filas | Test: {len(X_test)} filas\n")
 
-    mlflow.set_tracking_uri(f"sqlite:///{os.path.abspath(MLFLOW_DB)}")
-    mlflow.set_experiment("tasajusta-lgbm")
+    if MLFLOW_AVAILABLE:
+        mlflow.set_tracking_uri(f"sqlite:///{os.path.abspath(MLFLOW_DB)}")
+        mlflow.set_experiment("tasajusta-lgbm")
+        run_ctx = mlflow.start_run(run_name=f"lgbm-{day.isoformat()}")
+    else:
+        run_ctx = contextlib.nullcontext()
 
-    with mlflow.start_run(run_name=f"lgbm-{day.isoformat()}"):
-        mlflow.log_params({
-            "n_estimators":     300,
-            "num_leaves":       15,
-            "learning_rate":    0.05,
-            "min_child_samples": 5,
-            "subsample":        0.8,
-            "colsample_bytree": 0.8,
-            "train_size":       len(X_train),
-            "test_size":        len(X_test),
-            "gold_date":        day.isoformat(),
-        })
+    with run_ctx:
+        if MLFLOW_AVAILABLE:
+            mlflow.log_params({
+                "n_estimators":      300,
+                "num_leaves":        15,
+                "learning_rate":     0.05,
+                "min_child_samples": 5,
+                "subsample":         0.8,
+                "colsample_bytree":  0.8,
+                "train_size":        len(X_train),
+                "test_size":         len(X_test),
+                "gold_date":         day.isoformat(),
+            })
 
         model = train(X_train, y_train)
 
@@ -157,11 +168,11 @@ def run(day: date | None = None) -> dict:
         train_metrics = evaluate(model, X_train, y_train)
         test_metrics  = evaluate(model, X_test, y_test)
 
-        mlflow.log_metrics({f"train_{k.lower()}": v for k, v in train_metrics.items()})
-        mlflow.log_metrics({f"test_{k.lower()}": v for k, v in test_metrics.items()})
-        mlflow.log_metric("overfitting_gap_mae", test_metrics["MAE"] - train_metrics["MAE"])
-
-        mlflow.lightgbm.log_model(model, "model")
+        if MLFLOW_AVAILABLE:
+            mlflow.log_metrics({f"train_{k.lower()}": v for k, v in train_metrics.items()})
+            mlflow.log_metrics({f"test_{k.lower()}": v for k, v in test_metrics.items()})
+            mlflow.log_metric("overfitting_gap_mae", test_metrics["MAE"] - train_metrics["MAE"])
+            mlflow.lightgbm.log_model(model, "model")
 
     print("── Train metrics ──────────────────────")
     for k, v in train_metrics.items():
