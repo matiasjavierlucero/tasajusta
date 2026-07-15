@@ -69,6 +69,10 @@ def prepare(df: pd.DataFrame):
     for col in CAT_FEATURES:
         df[col] = df[col].astype("category")
 
+    # Polars Boolean → pandas puede leerlo como object (nullable Arrow bool)
+    # LightGBM solo acepta int/float/bool nativo de numpy
+    df["km_valido"] = df["km_valido"].astype(bool)
+
     X = df[FEATURE_COLS]
     y = df[TARGET]
     return X, y
