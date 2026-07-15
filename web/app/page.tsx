@@ -148,7 +148,7 @@ export default function HomePage() {
             <span>
               Desarrollado por{" "}
               <a
-                href="https://mjlucero.com"
+                href="https://rolphy.dev"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-brand-200 hover:text-white transition-colors font-medium"
