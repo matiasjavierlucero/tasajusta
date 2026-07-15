@@ -69,6 +69,7 @@ def compute_scores(df: pd.DataFrame, model) -> pd.DataFrame:
     X = df[FEATURE_COLS].copy()
     for col in CAT_FEATURES:
         X[col] = X[col].astype("category")
+    X["km_valido"] = X["km_valido"].astype(bool)
 
     df = df.copy()
     df["precio_estimado"] = model.predict(X).round(0).astype(int)
