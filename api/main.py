@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from etl.infra import get_pg_connection, get_s3_client
 from api.routes.predict import router as predict_router
 from api.routes.metrics import router as metrics_router
+from api.routes.agent import router as agent_router
 
 load_dotenv()
 
@@ -68,3 +69,4 @@ app = FastAPI(
 
 app.include_router(predict_router)
 app.include_router(metrics_router)
+app.include_router(agent_router)

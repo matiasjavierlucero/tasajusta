@@ -17,6 +17,7 @@ dependencies = [
     # API
     "fastapi>=0.111",
     "uvicorn>=0.30",
+    "groq>=0.9",
 ]
 
 [dependency-groups]

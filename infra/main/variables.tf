@@ -14,3 +14,8 @@ variable "database_url" {
   description = "Supabase DATABASE_URL para que Lambda consulte el dólar blue"
   sensitive   = true
 }
+
+variable "groq_api_key" {
+  description = "API key de Groq para el agente conversacional"
+  sensitive   = true
+}

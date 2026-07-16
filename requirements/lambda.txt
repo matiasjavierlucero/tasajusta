@@ -1,5 +1,6 @@
 fastapi>=0.111
 mangum>=0.17
+groq>=0.9
 lightgbm>=4.0
 scikit-learn>=1.5
 pandas>=2.0

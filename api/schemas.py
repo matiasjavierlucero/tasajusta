@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from typing import Any
 
 
 class PredictRequest(BaseModel):
@@ -14,3 +15,15 @@ class PredictResponse(BaseModel):
     modelo_usado:        str
     dolar_blue_venta:    float | None
     advertencia:         str | None
+
+
+class AgentRequest(BaseModel):
+    messages: list[dict[str, Any]] = Field(
+        ...,
+        example=[{"role": "user", "content": "Busco un Toyota Corolla en Córdoba, máximo 80k km"}],
+    )
+
+
+class AgentResponse(BaseModel):
+    response: str
+    messages: list[dict[str, Any]]  # historial completo para la próxima llamada

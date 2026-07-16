@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import PredictForm from "@/app/components/PredictForm";
+import AgentChat from "@/app/components/AgentChat";
 import DolarSection from "@/app/components/DolarSection";
 import OportunidadesSection from "@/app/components/OportunidadesSection";
 import VehiculosSection from "@/app/components/VehiculosSection";
@@ -51,6 +52,9 @@ export default function HomePage() {
             <a href="#mercado"   className="hover:text-brand-500 transition-colors">Mercado</a>
             <a href="#oportunidades" className="hidden sm:inline hover:text-brand-500 transition-colors">
               Oportunidades
+            </a>
+            <a href="#asesor" className="hover:text-brand-500 transition-colors">
+              Asesor IA
             </a>
           </div>
         </div>
@@ -104,6 +108,17 @@ export default function HomePage() {
 
       {/* ── Main content ──────────────────────────────────────────────────── */}
       <main className="max-w-7xl mx-auto px-6 py-14 space-y-14">
+
+        {/* Asesor IA */}
+        <section id="asesor">
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-slate-900">Asesor con IA</h2>
+            <p className="text-sm text-slate-500 mt-1">
+              Preguntale en lenguaje natural — busca dentro de las publicaciones reales del mercado.
+            </p>
+          </div>
+          <AgentChat />
+        </section>
 
         {/* Dólar */}
         <Suspense fallback={<DolarSkeleton />}>
