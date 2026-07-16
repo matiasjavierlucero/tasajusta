@@ -19,3 +19,13 @@ variable "groq_api_key" {
   description = "API key de Groq para el agente conversacional"
   sensitive   = true
 }
+
+variable "supabase_url" {
+  description = "URL del proyecto Supabase"
+  sensitive   = true
+}
+
+variable "supabase_service_key" {
+  description = "Service key de Supabase para el agente"
+  sensitive   = true
+}

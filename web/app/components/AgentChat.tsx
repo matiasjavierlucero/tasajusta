@@ -12,6 +12,7 @@ const SUGERENCIAS = [
 ];
 
 export default function AgentChat() {
+  const [open,      setOpen]      = useState(false);
   const [messages,  setMessages]  = useState<Message[]>([]);
   const [input,     setInput]     = useState("");
   const [loading,   setLoading]   = useState(false);
@@ -20,8 +21,12 @@ export default function AgentChat() {
   const inputRef  = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
+    if (open) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading, open]);
+
+  useEffect(() => {
+    if (open) inputRef.current?.focus();
+  }, [open]);
 
   async function sendMessage(text: string) {
     if (!text.trim() || loading) return;
@@ -64,107 +69,141 @@ export default function AgentChat() {
   const isEmpty = messages.length === 0;
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col h-[560px]">
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
 
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-slate-200 bg-brand-500 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-          IA
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-white">Asesor TasaJusta</p>
-          <p className="text-xs text-brand-100">Consultá sobre autos, precios y oportunidades</p>
-        </div>
-        <div className="ml-auto flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-sage-400 animate-pulse" />
-          <span className="text-xs text-brand-200">En línea</span>
-        </div>
-      </div>
+      {/* Panel del chat */}
+      {open && (
+        <div className="w-[360px] sm:w-[400px] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden"
+          style={{ height: 520 }}>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-        {isEmpty ? (
-          <div className="h-full flex flex-col items-center justify-center text-center px-4">
-            <p className="text-slate-400 text-sm mb-5">
-              Preguntame sobre autos, oportunidades o cotizaciones
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-sm">
-              {SUGERENCIAS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => sendMessage(s)}
-                  className="text-left text-xs px-3 py-2.5 rounded-lg border border-slate-200
-                    text-slate-600 hover:border-brand-400 hover:text-brand-600 hover:bg-brand-50
-                    transition-colors"
-                >
-                  {s}
-                </button>
-              ))}
+          {/* Header */}
+          <div className="px-4 py-3 bg-brand-500 flex items-center gap-3 flex-shrink-0">
+            <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+              IA
             </div>
-          </div>
-        ) : (
-          <>
-            {messages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
-                    msg.role === "user"
-                      ? "bg-brand-500 text-white rounded-br-sm"
-                      : "bg-slate-100 text-slate-800 rounded-bl-sm"
-                  }`}
-                >
-                  {msg.content}
-                </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-white leading-none">Asesor TasaJusta</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-sage-400 animate-pulse" />
+                <span className="text-xs text-brand-100">En línea</span>
               </div>
-            ))}
+            </div>
+            <button
+              onClick={() => setOpen(false)}
+              className="text-white/70 hover:text-white transition-colors p-1"
+              aria-label="Cerrar"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
 
-            {loading && (
-              <div className="flex justify-start">
-                <div className="bg-slate-100 rounded-2xl rounded-bl-sm px-4 py-3 flex gap-1.5 items-center">
-                  {[0, 150, 300].map((delay) => (
-                    <span
-                      key={delay}
-                      className="w-2 h-2 rounded-full bg-slate-400 animate-bounce"
-                      style={{ animationDelay: `${delay}ms` }}
-                    />
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2.5">
+            {isEmpty ? (
+              <div className="h-full flex flex-col items-center justify-center text-center px-2">
+                <p className="text-slate-400 text-xs mb-4">
+                  Preguntame sobre autos, oportunidades o cotizaciones
+                </p>
+                <div className="grid grid-cols-1 gap-1.5 w-full">
+                  {SUGERENCIAS.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => sendMessage(s)}
+                      className="text-left text-xs px-3 py-2 rounded-lg border border-slate-200
+                        text-slate-600 hover:border-brand-400 hover:text-brand-600 hover:bg-brand-50
+                        transition-colors"
+                    >
+                      {s}
+                    </button>
                   ))}
                 </div>
               </div>
-            )}
+            ) : (
+              <>
+                {messages.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div
+                      className={`max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap ${
+                        msg.role === "user"
+                          ? "bg-brand-500 text-white rounded-br-sm"
+                          : "bg-slate-100 text-slate-800 rounded-bl-sm"
+                      }`}
+                    >
+                      {msg.content}
+                    </div>
+                  </div>
+                ))}
 
-            {error && (
-              <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                {error}
-              </div>
+                {loading && (
+                  <div className="flex justify-start">
+                    <div className="bg-slate-100 rounded-2xl rounded-bl-sm px-3 py-2.5 flex gap-1 items-center">
+                      {[0, 150, 300].map((delay) => (
+                        <span
+                          key={delay}
+                          className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce"
+                          style={{ animationDelay: `${delay}ms` }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {error && (
+                  <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                    {error}
+                  </div>
+                )}
+              </>
             )}
-          </>
+            <div ref={bottomRef} />
+          </div>
+
+          {/* Input */}
+          <form onSubmit={handleSubmit} className="px-3 py-2.5 border-t border-slate-200 flex gap-2 flex-shrink-0">
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Escribí tu consulta..."
+              disabled={loading}
+              className="flex-1 text-xs px-3 py-2 rounded-xl border border-slate-300
+                focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20
+                disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            />
+            <button
+              type="submit"
+              disabled={!input.trim() || loading}
+              className="px-3 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 active:bg-brand-700
+                text-white text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed
+                transition-colors flex-shrink-0"
+            >
+              Enviar
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* Botón flotante */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-14 h-14 rounded-full bg-brand-500 hover:bg-brand-600 active:bg-brand-700
+          shadow-lg text-white flex items-center justify-center transition-all
+          hover:scale-105 active:scale-95"
+        aria-label="Abrir asesor IA"
+      >
+        {open ? (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        ) : (
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
         )}
-        <div ref={bottomRef} />
-      </div>
-
-      {/* Input */}
-      <form onSubmit={handleSubmit} className="px-4 py-3 border-t border-slate-200 flex gap-2">
-        <input
-          ref={inputRef}
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Escribí tu consulta..."
-          disabled={loading}
-          className="flex-1 text-sm px-4 py-2.5 rounded-xl border border-slate-300
-            focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20
-            disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        />
-        <button
-          type="submit"
-          disabled={!input.trim() || loading}
-          className="px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 active:bg-brand-700
-            text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed
-            transition-colors flex-shrink-0"
-        >
-          Enviar
-        </button>
-      </form>
+      </button>
     </div>
   );
 }
