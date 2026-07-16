@@ -14,7 +14,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "TasaJusta — Precio justo para tu auto usado",
+  title: "TasaJusta — Inteligencia de precios para autos usados",
   description:
     "Estimá el valor real de tu vehículo usado en Argentina. Datos de mercado reales, cruzados con el dólar blue y actualizados semanalmente.",
 };
