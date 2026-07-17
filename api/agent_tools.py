@@ -34,8 +34,9 @@ TOOLS = [
                     "provincia":         {"type": "string",  "description": "Provincia argentina (ej: Córdoba, Buenos Aires)"},
                     "anio_min":          {"type": "integer", "description": "Año mínimo del vehículo"},
                     "anio_max":          {"type": "integer", "description": "Año máximo del vehículo"},
-                    "km_max":            {"type": "integer", "description": "Kilometraje máximo"},
-                    "precio_max":        {"type": "integer", "description": "Precio máximo en pesos ARS"},
+                    "km_min":            {"type": "integer", "description": "Kilometraje mínimo (para 'más de X km')"},
+                    "km_max":            {"type": "integer", "description": "Kilometraje máximo (para 'menos de X km')"},
+                    "precio_max":        {"type": "integer", "description": "Precio máximo en PESOS ARGENTINOS (ARS). Convertir de USD a ARS si el usuario menciona dólares."},
                     "solo_oportunidades":{"type": "boolean", "description": "Si true, filtra solo autos subvaluados (score > 10%)"},
                 },
                 "required": [],
@@ -107,6 +108,7 @@ def buscar_autos(
     provincia: str | None = None,
     anio_min: int | None = None,
     anio_max: int | None = None,
+    km_min: int | None = None,
     km_max: int | None = None,
     precio_max: int | None = None,
     solo_oportunidades: bool = False,
@@ -126,6 +128,8 @@ def buscar_autos(
         params["anio"] = f"gte.{anio_min}"
     if anio_max:
         params["anio"] = f"lte.{anio_max}"
+    if km_min:
+        params["km"] = f"gte.{km_min}"
     if km_max:
         params["km"] = f"lte.{km_max}"
     if precio_max:
@@ -214,7 +218,7 @@ def predecir_precio(marca: str, modelo: str, provincia: str, anio: int, km: int,
 
 # ── Dispatcher ─────────────────────────────────────────────────────────────────
 
-_INT_FIELDS  = {"anio_min", "anio_max", "km_max", "precio_max", "limite", "anio", "km"}
+_INT_FIELDS  = {"anio_min", "anio_max", "km_min", "km_max", "precio_max", "limite", "anio", "km"}
 _BOOL_FIELDS = {"solo_oportunidades"}
 
 

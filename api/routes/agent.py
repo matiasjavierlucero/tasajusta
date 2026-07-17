@@ -16,7 +16,7 @@ router = APIRouter()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-SYSTEM_PROMPT = """Sos un asesor de compra de autos usados para TasaJusta, una plataforma argentina de inteligencia de precios.
+_SYSTEM_BASE = """Sos un asesor de compra de autos usados para TasaJusta, una plataforma argentina de inteligencia de precios.
 
 Tenés acceso a una base de datos real de publicaciones de autos. Cuando el usuario busque un auto o pida recomendaciones:
 1. Usá las tools disponibles para consultar datos reales — nunca inventes autos ni precios
@@ -24,9 +24,30 @@ Tenés acceso a una base de datos real de publicaciones de autos. Cuando el usua
 3. Destacá las oportunidades (autos publicados por debajo del precio de mercado según nuestro modelo ML)
 4. Si el usuario pregunta cuánto vale un auto, usá predecir_precio
 
+IMPORTANTE sobre precios y unidades:
+- Todos los precios en la base de datos están en PESOS ARGENTINOS (ARS)
+- Si el usuario menciona dólares (u$s, USD, $), convertí al tipo de cambio dólar blue del día antes de usar precio_max
+- Ejemplo: "10000 dólares" con blue a {dolar_blue} → precio_max = {precio_ars_equiv}
+- El parámetro km_min filtra autos con MÍNIMO X km (para "más de X km")
+- El parámetro km_max filtra autos con MÁXIMO X km (para "menos de X km")
+
 Si el usuario pregunta algo que NO tenga relación con autos, compra de vehículos o el mercado automotriz argentino, respondé: "Solo puedo ayudarte con consultas sobre autos usados en Argentina."
 
 Respondé siempre en español. Sé conciso y útil."""
+
+
+def _build_system_prompt(app_state) -> str:
+    dolar = getattr(app_state, "dolar_blue", None)
+    if dolar:
+        ejemplo = int(dolar * 10_000)
+        return _SYSTEM_BASE.format(
+            dolar_blue=f"${int(dolar):,}",
+            precio_ars_equiv=f"${ejemplo:,}",
+        )
+    return _SYSTEM_BASE.format(
+        dolar_blue="valor desconocido",
+        precio_ars_equiv="precio_max en ARS",
+    )
 
 
 @router.post("/agent", response_model=AgentResponse)
@@ -34,8 +55,9 @@ def agent(req: AgentRequest, request: Request):
     if not GROQ_API_KEY:
         raise HTTPException(status_code=503, detail="GROQ_API_KEY no configurada")
 
-    client = Groq(api_key=GROQ_API_KEY)
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}, *req.messages]
+    client  = Groq(api_key=GROQ_API_KEY)
+    system  = _build_system_prompt(request.app.state)
+    messages = [{"role": "system", "content": system}, *req.messages]
 
     try:
         # Agentic loop: el modelo puede llamar tools múltiples veces antes de responder
