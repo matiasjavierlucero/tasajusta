@@ -16,7 +16,6 @@ export default function AgentChat() {
   const [messages,  setMessages]  = useState<Message[]>([]);
   const [input,     setInput]     = useState("");
   const [loading,   setLoading]   = useState(false);
-  const [error,     setError]     = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
 
@@ -37,7 +36,6 @@ export default function AgentChat() {
     setMessages(nextMessages);
     setInput("");
     setLoading(true);
-    setError(null);
 
     try {
       const res = await fetch("/api/agent", {
@@ -46,15 +44,15 @@ export default function AgentChat() {
         body:    JSON.stringify({ messages: nextMessages }),
       });
 
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body?.detail ?? `Error ${res.status}`);
-      }
+      if (!res.ok) throw new Error("error");
 
       const data = await res.json();
       setMessages([...nextMessages, { role: "assistant", content: data.response }]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error inesperado");
+    } catch {
+      setMessages([...nextMessages, {
+        role:    "assistant",
+        content: "Tuve un problema para procesar tu consulta. ¿Podés intentarlo de nuevo o reformular la pregunta?",
+      }]);
     } finally {
       setLoading(false);
       inputRef.current?.focus();
@@ -150,11 +148,6 @@ export default function AgentChat() {
                   </div>
                 )}
 
-                {error && (
-                  <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                    {error}
-                  </div>
-                )}
               </>
             )}
             <div ref={bottomRef} />
