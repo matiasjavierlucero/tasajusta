@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const maxDuration = 60;
+
 const LAMBDA_URL =
   process.env.LAMBDA_API_URL ??
   "https://5yoo5ugs44.execute-api.us-east-1.amazonaws.com";

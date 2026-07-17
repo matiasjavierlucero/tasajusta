@@ -6,7 +6,7 @@ consultando la base de datos real de autos.
 
 import os
 
-from groq import Groq
+from groq import Groq, BadRequestError, APIStatusError
 from fastapi import APIRouter, HTTPException, Request
 
 from api.schemas import AgentRequest, AgentResponse
@@ -24,6 +24,8 @@ Tenés acceso a una base de datos real de publicaciones de autos. Cuando el usua
 3. Destacá las oportunidades (autos publicados por debajo del precio de mercado según nuestro modelo ML)
 4. Si el usuario pregunta cuánto vale un auto, usá predecir_precio
 
+Si el usuario pregunta algo que NO tenga relación con autos, compra de vehículos o el mercado automotriz argentino, respondé: "Solo puedo ayudarte con consultas sobre autos usados en Argentina."
+
 Respondé siempre en español. Sé conciso y útil."""
 
 
@@ -35,37 +37,48 @@ def agent(req: AgentRequest, request: Request):
     client = Groq(api_key=GROQ_API_KEY)
     messages = [{"role": "system", "content": SYSTEM_PROMPT}, *req.messages]
 
-    # Agentic loop: el modelo puede llamar tools múltiples veces antes de responder
-    for _ in range(5):  # máximo 5 iteraciones para evitar loops infinitos
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=messages,
-            tools=TOOLS,
-            tool_choice="auto",
-            max_tokens=1024,
-        )
-
-        message = response.choices[0].message
-
-        if not message.tool_calls:
-            # El modelo decidió responder — salimos del loop
-            return AgentResponse(
-                response=message.content,
-                messages=[*req.messages, {"role": "assistant", "content": message.content}],
+    try:
+        # Agentic loop: el modelo puede llamar tools múltiples veces antes de responder
+        for _ in range(5):  # máximo 5 iteraciones para evitar loops infinitos
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=messages,
+                tools=TOOLS,
+                tool_choice="auto",
+                max_tokens=1024,
             )
 
-        # Ejecutar cada tool call y agregar los resultados al historial
-        messages.append(message)
-        for tool_call in message.tool_calls:
-            result = execute_tool(
-                name=tool_call.function.name,
-                arguments=tool_call.function.arguments,
-                app_state=request.app.state,
-            )
-            messages.append({
-                "role":         "tool",
-                "tool_call_id": tool_call.id,
-                "content":      result,
-            })
+            message = response.choices[0].message
+
+            if not message.tool_calls:
+                # El modelo decidió responder — salimos del loop
+                return AgentResponse(
+                    response=message.content,
+                    messages=[*req.messages, {"role": "assistant", "content": message.content}],
+                )
+
+            # Ejecutar cada tool call y agregar los resultados al historial
+            messages.append(message)
+            for tool_call in message.tool_calls:
+                try:
+                    result = execute_tool(
+                        name=tool_call.function.name,
+                        arguments=tool_call.function.arguments,
+                        app_state=request.app.state,
+                    )
+                except Exception as e:
+                    result = f"Error ejecutando {tool_call.function.name}: {e}"
+                messages.append({
+                    "role":         "tool",
+                    "tool_call_id": tool_call.id,
+                    "content":      result,
+                })
+
+    except BadRequestError as e:
+        raise HTTPException(status_code=400, detail=f"Error en la solicitud al modelo: {e}")
+    except APIStatusError as e:
+        raise HTTPException(status_code=502, detail=f"Error del servicio de IA: {e.status_code}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error inesperado: {e}")
 
     raise HTTPException(status_code=500, detail="El agente no pudo completar la respuesta")

@@ -35,7 +35,7 @@ function fmtKm(n: number) {
 }
 
 const selectCls =
-  "bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-700 " +
+  "bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-xs text-slate-700 dark:text-slate-200 " +
   "focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/30 " +
   "disabled:opacity-40 transition-colors min-w-0";
 
@@ -98,11 +98,11 @@ export default function AutosTable({ autos, marcas, provincias }: Props) {
   return (
     <div className="space-y-4">
       {/* ── Filtros ── */}
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-4">
         <div className="flex flex-wrap gap-3 items-end">
 
           <div className="flex-1 min-w-[160px]">
-            <label className="block text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-1.5">Buscar</label>
+            <label className="block text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1.5">Buscar</label>
             <input
               type="text"
               placeholder="Marca o modelo..."
@@ -113,7 +113,7 @@ export default function AutosTable({ autos, marcas, provincias }: Props) {
           </div>
 
           <div className="min-w-[130px]">
-            <label className="block text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-1.5">Marca</label>
+            <label className="block text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1.5">Marca</label>
             <select className={selectCls} value={marca} onChange={(e) => setMarca(e.target.value)}>
               <option value="">Todas</option>
               {marcas.map((m) => <option key={m} value={m}>{m}</option>)}
@@ -121,7 +121,7 @@ export default function AutosTable({ autos, marcas, provincias }: Props) {
           </div>
 
           <div className="min-w-[130px]">
-            <label className="block text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-1.5">Provincia</label>
+            <label className="block text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1.5">Provincia</label>
             <select className={selectCls} value={provincia} onChange={(e) => setProvincia(e.target.value)}>
               <option value="">Todas</option>
               {provincias.map((p) => <option key={p} value={p}>{p}</option>)}
@@ -129,20 +129,20 @@ export default function AutosTable({ autos, marcas, provincias }: Props) {
           </div>
 
           <div>
-            <label className="block text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-1.5">Año desde</label>
+            <label className="block text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1.5">Año desde</label>
             <input type="number" placeholder="2010" min={1990} max={2026}
               value={anioMin} onChange={(e) => setAnioMin(e.target.value)}
               className={selectCls + " w-24"} />
           </div>
           <div>
-            <label className="block text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-1.5">Año hasta</label>
+            <label className="block text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1.5">Año hasta</label>
             <input type="number" placeholder="2026" min={1990} max={2026}
               value={anioMax} onChange={(e) => setAnioMax(e.target.value)}
               className={selectCls + " w-24"} />
           </div>
 
           <div className="min-w-[140px]">
-            <label className="block text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-1.5">Precio máx.</label>
+            <label className="block text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1.5">Precio máx.</label>
             <input type="number" placeholder="Ej: 30000000"
               value={precioMax} onChange={(e) => setPrecioMax(e.target.value)}
               className={selectCls + " w-full"} />
@@ -165,7 +165,7 @@ export default function AutosTable({ autos, marcas, provincias }: Props) {
       </div>
 
       {/* ── Tabla ── */}
-      <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
         <table className="w-full text-sm">
           <thead className="bg-brand-500">
             <tr>
@@ -197,8 +197,8 @@ export default function AutosTable({ autos, marcas, provincias }: Props) {
               sorted.map((a, i) => (
                 <tr
                   key={a.cod}
-                  className={`border-b border-slate-100 hover:bg-brand-50/50 transition-colors ${
-                    i % 2 === 0 ? "bg-white" : "bg-slate-50/50"
+                  className={`border-b border-slate-100 dark:border-slate-700 hover:bg-brand-50/50 dark:hover:bg-slate-700/40 transition-colors ${
+                    i % 2 === 0 ? "bg-white dark:bg-slate-800" : "bg-slate-50/50 dark:bg-slate-800/50"
                   }`}
                 >
                   <td className="px-4 py-3">
@@ -209,21 +209,21 @@ export default function AutosTable({ autos, marcas, provincias }: Props) {
                   <td className="px-4 py-3">
                     <a
                       href={a.url} target="_blank" rel="noopener noreferrer"
-                      className="text-slate-800 hover:text-brand-500 transition-colors font-medium"
+                      className="text-slate-800 dark:text-slate-200 hover:text-brand-500 transition-colors font-medium"
                     >
                       {a.modelo}
                     </a>
                   </td>
-                  <td className="px-4 py-3 text-slate-500 tabular-nums">{a.anio}</td>
-                  <td className="px-4 py-3 text-right font-mono font-semibold text-slate-900 tabular-nums">
+                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400 tabular-nums">{a.anio}</td>
+                  <td className="px-4 py-3 text-right font-mono font-semibold text-slate-900 dark:text-slate-100 tabular-nums">
                     {fmt(a.precio_ars)}
                   </td>
-                  <td className="px-4 py-3 text-right text-slate-500 tabular-nums">
+                  <td className="px-4 py-3 text-right text-slate-500 dark:text-slate-400 tabular-nums">
                     {a.km <= 1 ? "—" : fmtKm(a.km)}
                   </td>
-                  <td className="px-4 py-3 text-slate-400 text-xs">{a.provincia}</td>
+                  <td className="px-4 py-3 text-slate-400 dark:text-slate-500 text-xs">{a.provincia}</td>
                   <td className="px-4 py-3 w-28">
-                    <div className="h-1.5 rounded-full bg-slate-200">
+                    <div className="h-1.5 rounded-full bg-slate-200 dark:bg-slate-600">
                       <div
                         className="h-1.5 rounded-full bg-brand-500 transition-all"
                         style={{ width: `${(a.precio_ars / maxPrecio) * 100}%` }}

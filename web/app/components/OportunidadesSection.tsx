@@ -35,8 +35,8 @@ export default async function OportunidadesSection() {
     <section>
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">Oportunidades del mercado</h2>
-          <p className="text-sm text-slate-500 mt-0.5">Publicaciones más de 10% por debajo del precio estimado</p>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Oportunidades del mercado</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Publicaciones más de 10% por debajo del precio estimado</p>
         </div>
         <span className="text-xs font-semibold text-sage-700 bg-sage-50 border border-sage-200 px-2.5 py-1 rounded-full">
           {oportunidades.length} encontradas
@@ -54,16 +54,16 @@ export default async function OportunidadesSection() {
               href={auto.url.startsWith("http") ? auto.url : `https://www.deruedas.com.ar${auto.url}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="group block rounded-xl border border-slate-200 bg-white
-                         hover:shadow-md hover:border-brand-300 transition-all p-5"
+              className="group block rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800
+                         hover:shadow-md hover:border-brand-300 dark:hover:border-brand-600 transition-all p-5"
             >
               {/* Encabezado */}
               <div className="flex items-start justify-between gap-2 mb-4">
                 <div>
-                  <p className="font-semibold text-slate-900">
+                  <p className="font-semibold text-slate-900 dark:text-white">
                     {auto.marca} {auto.modelo}
                   </p>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
                     {auto.anio} · {auto.provincia}
                   </p>
                 </div>
@@ -74,10 +74,10 @@ export default async function OportunidadesSection() {
               </div>
 
               {/* Comparación de precios */}
-              <div className="flex items-end justify-between border-t border-slate-100 pt-4">
+              <div className="flex items-end justify-between border-t border-slate-100 dark:border-slate-700 pt-4">
                 <div>
                   <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">Publicado</p>
-                  <p className="text-lg font-bold text-slate-900">${fmt(auto.precio_ars)}</p>
+                  <p className="text-lg font-bold text-slate-900 dark:text-white">${fmt(auto.precio_ars)}</p>
                 </div>
                 <div className="text-slate-300 pb-1 text-lg">→</div>
                 <div className="text-right">
@@ -86,7 +86,7 @@ export default async function OportunidadesSection() {
                 </div>
               </div>
 
-              <p className="text-xs text-slate-500 mt-3 pt-2 border-t border-slate-100">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-3 pt-2 border-t border-slate-100 dark:border-slate-700">
                 Ahorro estimado: <span className="font-semibold text-sage-600">${fmt(ahorro)}</span>
               </p>
             </a>

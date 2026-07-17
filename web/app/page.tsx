@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import PredictForm from "@/app/components/PredictForm";
-import AgentChat from "@/app/components/AgentChat";
+import ThemeToggle from "@/app/components/ThemeToggle";
 import DolarSection from "@/app/components/DolarSection";
 import OportunidadesSection from "@/app/components/OportunidadesSection";
 import VehiculosSection from "@/app/components/VehiculosSection";
@@ -37,7 +37,7 @@ function TableSkeleton() {
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-white text-slate-900">
+    <div className="min-h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
 
       {/* ── Navbar ────────────────────────────────────────────────────────── */}
       <nav className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
@@ -47,21 +47,19 @@ export default function HomePage() {
             <img src="/icon.svg" alt="TasaJusta" width={34} height={34} className="rounded-xl" />
             <span className="font-bold text-lg text-brand-500 tracking-tight">TasaJusta</span>
           </div>
-          <div className="flex items-center gap-6 text-sm font-medium text-slate-500">
+          <div className="flex items-center gap-6 text-sm font-medium text-slate-500 dark:text-slate-400">
             <a href="#cotizador" className="hover:text-brand-500 transition-colors">Cotizador</a>
             <a href="#mercado"   className="hover:text-brand-500 transition-colors">Mercado</a>
             <a href="#oportunidades" className="hidden sm:inline hover:text-brand-500 transition-colors">
               Oportunidades
             </a>
-            <a href="#asesor" className="hover:text-brand-500 transition-colors">
-              Asesor IA
-            </a>
+            <ThemeToggle />
           </div>
         </div>
       </nav>
 
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
-      <section className="bg-slate-50 border-b border-slate-200">
+      <section className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
         <div className="max-w-7xl mx-auto px-6 py-14 lg:py-20">
           <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-start">
 
@@ -72,7 +70,7 @@ export default function HomePage() {
                 Datos actualizados semanalmente
               </div>
 
-              <h1 className="text-4xl lg:text-5xl font-bold text-slate-900 leading-[1.15] mb-4">
+              <h1 className="text-4xl lg:text-5xl font-bold text-slate-900 dark:text-white leading-[1.15] mb-4">
                 Sabé cuánto<br />
                 <span className="text-brand-500">vale</span> tu auto.
               </h1>
@@ -99,7 +97,7 @@ export default function HomePage() {
             </div>
 
             {/* Formulario — tarjeta flotante */}
-            <div id="cotizador" className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+            <div id="cotizador" className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
               <PredictForm />
             </div>
           </div>
@@ -108,17 +106,6 @@ export default function HomePage() {
 
       {/* ── Main content ──────────────────────────────────────────────────── */}
       <main className="max-w-7xl mx-auto px-6 py-14 space-y-14">
-
-        {/* Asesor IA */}
-        <section id="asesor">
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-slate-900">Asesor con IA</h2>
-            <p className="text-sm text-slate-500 mt-1">
-              Preguntale en lenguaje natural — busca dentro de las publicaciones reales del mercado.
-            </p>
-          </div>
-          <AgentChat />
-        </section>
 
         {/* Dólar */}
         <Suspense fallback={<DolarSkeleton />}>

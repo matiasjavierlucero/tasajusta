@@ -86,6 +86,8 @@ TOOLS = [
 
 def _supabase_get(path: str, params: dict) -> list[dict]:
     """Query GET a Supabase REST API con filtros PostgREST."""
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        raise RuntimeError("Credenciales de Supabase no configuradas en el servidor")
     resp = httpx.get(
         f"{SUPABASE_URL}/rest/v1/{path}",
         headers={
@@ -212,8 +214,26 @@ def predecir_precio(marca: str, modelo: str, provincia: str, anio: int, km: int,
 
 # ── Dispatcher ─────────────────────────────────────────────────────────────────
 
+_INT_FIELDS  = {"anio_min", "anio_max", "km_max", "precio_max", "limite", "anio", "km"}
+_BOOL_FIELDS = {"solo_oportunidades"}
+
+
+def _coerce(args: dict) -> dict:
+    """LLMs sometimes pass integers/booleans as strings — coerce to correct type."""
+    for k in _INT_FIELDS:
+        if k in args and not isinstance(args[k], int):
+            try:
+                args[k] = int(args[k])
+            except (ValueError, TypeError):
+                pass
+    for k in _BOOL_FIELDS:
+        if k in args and not isinstance(args[k], bool):
+            args[k] = str(args[k]).lower() in ("true", "1", "yes")
+    return args
+
+
 def execute_tool(name: str, arguments: str, app_state=None) -> str:
-    args = json.loads(arguments)
+    args = _coerce(json.loads(arguments))
     if name == "buscar_autos":
         return buscar_autos(**args)
     if name == "top_oportunidades":

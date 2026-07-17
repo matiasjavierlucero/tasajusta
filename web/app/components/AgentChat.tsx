@@ -187,23 +187,29 @@ export default function AgentChat() {
       )}
 
       {/* Botón flotante */}
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="w-14 h-14 rounded-full bg-brand-500 hover:bg-brand-600 active:bg-brand-700
-          shadow-lg text-white flex items-center justify-center transition-all
-          hover:scale-105 active:scale-95"
-        aria-label="Abrir asesor IA"
-      >
-        {open ? (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
-        ) : (
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
+      <div className="relative">
+        {/* Ping solo cuando está cerrado */}
+        {!open && (
+          <span className="absolute inset-0 rounded-full bg-brand-400 animate-ping opacity-30 pointer-events-none" />
         )}
-      </button>
+        <button
+          onClick={() => setOpen(o => !o)}
+          className="relative w-14 h-14 rounded-full bg-brand-500 hover:bg-brand-600 active:bg-brand-700
+            shadow-lg text-white flex items-center justify-center transition-all
+            hover:scale-105 active:scale-95"
+          aria-label="Abrir asesor IA"
+        >
+          {open ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          ) : (
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+          )}
+        </button>
+      </div>
     </div>
   );
 }

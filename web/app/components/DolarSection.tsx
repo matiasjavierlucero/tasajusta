@@ -35,8 +35,8 @@ export default async function DolarSection() {
   return (
     <section>
       <div className="flex items-center justify-between mb-5">
-        <h2 className="text-xl font-bold text-slate-900">Cotizaciones del dólar</h2>
-        <span className="text-xs text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full">
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Cotizaciones del dólar</h2>
+        <span className="text-xs text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">
           {cotizaciones[0]?.fecha}
         </span>
       </div>
@@ -46,13 +46,13 @@ export default async function DolarSection() {
         {featured.map((c) => (
           <div
             key={c.casa}
-            className="flex items-center gap-5 rounded-xl px-5 py-4 border-2 border-brand-500 bg-brand-50 min-w-[170px]"
+            className="flex items-center gap-5 rounded-xl px-5 py-4 border-2 border-brand-500 bg-brand-50 dark:bg-brand-900/20 min-w-[170px]"
           >
             <div>
               <p className="text-[11px] font-bold uppercase tracking-wider text-brand-500 mb-1">
                 {c.nombre}
               </p>
-              <p className="text-2xl font-bold text-slate-900 leading-none">
+              <p className="text-2xl font-bold text-slate-900 dark:text-white leading-none">
                 ${fmt(c.venta)}
               </p>
             </div>
@@ -67,11 +67,11 @@ export default async function DolarSection() {
         {rest.map((c) => (
           <div
             key={c.casa}
-            className="flex items-center gap-2 rounded-xl px-4 py-3 border border-slate-200 bg-white min-w-[120px]"
+            className="flex items-center gap-2 rounded-xl px-4 py-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 min-w-[120px]"
           >
             <div>
               <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">{c.nombre}</p>
-              <p className="text-base font-bold text-slate-800">${fmt(c.venta)}</p>
+              <p className="text-base font-bold text-slate-800 dark:text-slate-100">${fmt(c.venta)}</p>
             </div>
           </div>
         ))}

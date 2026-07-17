@@ -72,11 +72,11 @@ type PredictResult = {
 };
 
 const selectCls =
-  "w-full bg-white border border-slate-300 rounded-lg px-3 py-2.5 text-sm text-slate-900 " +
+  "w-full bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 " +
   "focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 " +
   "disabled:opacity-40 disabled:cursor-not-allowed transition-colors";
 
-const labelCls = "block text-xs font-semibold text-slate-600 mb-1.5";
+const labelCls = "block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5";
 
 export default function PredictForm() {
   const [marca,     setMarca]     = useState("");
@@ -237,14 +237,14 @@ export default function PredictForm() {
 
         {/* Error */}
         {error && (
-          <div className="mt-5 p-4 rounded-lg border border-red-200 bg-red-50 text-sm text-red-700">
+          <div className="mt-5 p-4 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-sm text-red-700 dark:text-red-400">
             {error}
           </div>
         )}
 
         {/* Resultado */}
         {result && (
-          <div className="mt-6 rounded-xl border border-brand-200 bg-brand-50 p-5">
+          <div className="mt-6 rounded-xl border border-brand-200 dark:border-brand-800 bg-brand-50 dark:bg-brand-900/20 p-5">
             <p className="text-xs font-semibold text-brand-600 uppercase tracking-wide mb-3">
               Precio estimado al {(() => {
                 const m = result.modelo_usado?.match(/(\d{4}-\d{2}-\d{2})/);
@@ -255,7 +255,7 @@ export default function PredictForm() {
             </p>
 
             {/* Precio principal */}
-            <p className="text-4xl font-bold text-slate-900">
+            <p className="text-4xl font-bold text-slate-900 dark:text-white">
               ${result.precio_estimado_ars.toLocaleString("es-AR")}
             </p>
             <p className="text-sm text-slate-500 mt-1">pesos argentinos</p>
