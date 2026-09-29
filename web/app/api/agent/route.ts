@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
 export const maxDuration = 60;
 
@@ -9,12 +9,18 @@ const LAMBDA_URL =
 export async function POST(req: NextRequest) {
   const body = await req.json();
 
-  const upstream = await fetch(`${LAMBDA_URL}/agent`, {
+  const upstream = await fetch(`${LAMBDA_URL}/agent/stream`, {
     method:  "POST",
     headers: { "Content-Type": "application/json" },
     body:    JSON.stringify(body),
   });
 
-  const data = await upstream.json();
-  return NextResponse.json(data, { status: upstream.status });
+  return new Response(upstream.body, {
+    status:  upstream.status,
+    headers: {
+      "Content-Type":      "text/event-stream",
+      "Cache-Control":     "no-cache",
+      "X-Accel-Buffering": "no",
+    },
+  });
 }

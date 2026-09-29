@@ -44,10 +44,59 @@ export default function AgentChat() {
         body:    JSON.stringify({ messages: nextMessages }),
       });
 
-      if (!res.ok) throw new Error("error");
+      if (!res.ok || !res.body) throw new Error("error");
 
-      const data = await res.json();
-      setMessages([...nextMessages, { role: "assistant", content: data.response }]);
+      const reader  = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer    = "";
+      let streaming = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const parsed = JSON.parse(line.slice(6));
+
+            if (parsed.token) {
+              if (!streaming) {
+                setMessages(prev => [...prev, { role: "assistant", content: parsed.token }]);
+                setLoading(false);
+                streaming = true;
+              } else {
+                setMessages(prev => {
+                  const updated = [...prev];
+                  const last    = updated[updated.length - 1];
+                  if (last?.role === "assistant") {
+                    updated[updated.length - 1] = { ...last, content: last.content + parsed.token };
+                  }
+                  return updated;
+                });
+              }
+            }
+
+            if (parsed.done) {
+              setLoading(false);
+              setMessages(parsed.messages);
+            }
+
+            if (parsed.error) {
+              setMessages([...nextMessages, {
+                role:    "assistant",
+                content: "Tuve un problema para procesar tu consulta. ¿Podés intentarlo de nuevo o reformular la pregunta?",
+              }]);
+            }
+          } catch {
+            // chunk inválido, ignorar
+          }
+        }
+      }
     } catch {
       setMessages([...nextMessages, {
         role:    "assistant",
