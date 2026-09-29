@@ -1,30 +1,34 @@
 """
 Endpoint del agente conversacional de TasaJusta.
-Usa Groq (Llama 3.3 70B) con tool use para responder en lenguaje natural
-consultando la base de datos real de autos.
+Usa LangGraph create_react_agent (Groq openai/gpt-oss-120b) con tool use.
 
-Observabilidad: cada turno genera un trace en Langfuse con la estructura:
-  tasajusta-agent (agent)
-    ├── groq-call (generation, auto via GroqInstrumentor)   ← primera llamada, retorna tool_calls
-    ├── <tool_name> (tool, manual)                          ← resultado de cada herramienta
-    └── groq-call (generation, auto via GroqInstrumentor)   ← llamada final con respuesta
+El grafo ReAct corre internamente:
+  1. LLM decide si llamar una tool o responder directamente
+  2. Si hay tool_calls → ToolNode las ejecuta y vuelve al LLM
+  3. Si hay respuesta final → retorna
+
+Observabilidad: GroqInstrumentor (en main.py) auto-traza las llamadas al LLM;
+el span "tasajusta-agent" envuelve todo el ciclo ReAct.
 """
 
 import json
 import os
 from contextlib import nullcontext
 
-from groq import Groq, BadRequestError, APIStatusError
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
+from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, HumanMessage
+from langchain_groq import ChatGroq
+from langgraph.prebuilt import create_react_agent
 
+from api.agent_tools import make_langchain_tools
 from api.schemas import AgentRequest, AgentResponse
-from api.agent_tools import TOOLS, execute_tool
 
 router = APIRouter()
 
 GROQ_API_KEY      = os.getenv("GROQ_API_KEY")
 _LANGFUSE_ENABLED = bool(os.getenv("LANGFUSE_PUBLIC_KEY"))
+_MODEL            = "openai/gpt-oss-120b"
 
 _SYSTEM_BASE = """Sos un asesor de compra de autos usados para TasaJusta, una plataforma argentina de inteligencia de precios.
 
@@ -60,97 +64,58 @@ def _build_system_prompt(app_state) -> str:
     )
 
 
+def _to_lc(messages: list[dict]) -> list[BaseMessage]:
+    """Convierte mensajes del formato API ({role, content}) a objetos LangChain."""
+    return [
+        HumanMessage(content=m["content"]) if m["role"] == "user"
+        else AIMessage(content=m["content"])
+        for m in messages
+    ]
+
+
+def _make_graph(app_state):
+    llm    = ChatGroq(model=_MODEL, api_key=GROQ_API_KEY, max_tokens=1024)
+    tools  = make_langchain_tools(app_state)
+    system = _build_system_prompt(app_state)
+    return create_react_agent(llm, tools, state_modifier=system)
+
+
+def _langfuse_ctxs(req: AgentRequest, user_input: str):
+    if _LANGFUSE_ENABLED:
+        from langfuse import get_client, propagate_attributes
+        langfuse = get_client()
+        return (
+            langfuse.start_as_current_observation(
+                as_type="agent", name="tasajusta-agent", input=user_input,
+            ),
+            propagate_attributes(session_id=req.session_id, tags=["agent", "tasajusta"]),
+        )
+    return nullcontext(), nullcontext()
+
+
 @router.post("/agent", response_model=AgentResponse)
 def agent(req: AgentRequest, request: Request):
     if not GROQ_API_KEY:
         raise HTTPException(status_code=503, detail="GROQ_API_KEY no configurada")
 
-    client   = Groq(api_key=GROQ_API_KEY)
-    system   = _build_system_prompt(request.app.state)
-    messages = [{"role": "system", "content": system}, *req.messages]
-
-    user_input = req.messages[-1]["content"] if req.messages else ""
-
-    # Span raíz del agente — engloba todo el loop ReAct
-    if _LANGFUSE_ENABLED:
-        from langfuse import get_client, propagate_attributes
-        langfuse  = get_client()
-        agent_ctx = langfuse.start_as_current_observation(
-            as_type="agent",
-            name="tasajusta-agent",
-            input=user_input,
-        )
-        attrs_ctx = propagate_attributes(
-            session_id=req.session_id,
-            tags=["agent", "tasajusta"],
-        )
-    else:
-        agent_ctx = nullcontext()
-        attrs_ctx = nullcontext()
+    user_input              = req.messages[-1]["content"] if req.messages else ""
+    agent_ctx, attrs_ctx    = _langfuse_ctxs(req, user_input)
 
     try:
         with agent_ctx as agent_obs:
             with attrs_ctx:
-                for _ in range(5):
-                    response = client.chat.completions.create(
-                        model="openai/gpt-oss-120b",
-                        messages=messages,
-                        tools=TOOLS,
-                        tool_choice="auto",
-                        max_tokens=1024,
-                    )
-
-                    message = response.choices[0].message
-
-                    if not message.tool_calls:
-                        final_response = message.content
-                        if agent_obs is not None:
-                            agent_obs.update(output=final_response)
-                        return AgentResponse(
-                            response=final_response,
-                            messages=[*req.messages, {"role": "assistant", "content": final_response}],
-                        )
-
-                    messages.append(message)
-
-                    for tool_call in message.tool_calls:
-                        # Span por tool call: input = args, output = resultado
-                        if _LANGFUSE_ENABLED:
-                            tool_ctx = langfuse.start_as_current_observation(
-                                as_type="tool",
-                                name=tool_call.function.name,
-                                input=json.loads(tool_call.function.arguments),
-                            )
-                        else:
-                            tool_ctx = nullcontext()
-
-                        with tool_ctx as tool_obs:
-                            try:
-                                result = execute_tool(
-                                    name=tool_call.function.name,
-                                    arguments=tool_call.function.arguments,
-                                    app_state=request.app.state,
-                                )
-                            except Exception as e:
-                                result = f"Error ejecutando {tool_call.function.name}: {e}"
-
-                            if tool_obs is not None:
-                                tool_obs.update(output=result)
-
-                        messages.append({
-                            "role":         "tool",
-                            "tool_call_id": tool_call.id,
-                            "content":      result,
-                        })
-
-    except BadRequestError as e:
-        raise HTTPException(status_code=400, detail=f"Error en la solicitud al modelo: {e}")
-    except APIStatusError as e:
-        raise HTTPException(status_code=502, detail=f"Error del servicio de IA: {e.status_code}")
+                graph   = _make_graph(request.app.state)
+                result  = graph.invoke({"messages": _to_lc(req.messages)})
+                content = result["messages"][-1].content
+                if agent_obs is not None:
+                    agent_obs.update(output=content)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error inesperado: {e}")
+        raise HTTPException(status_code=500, detail=f"Error del agente: {e}")
 
-    raise HTTPException(status_code=500, detail="El agente no pudo completar la respuesta")
+    return AgentResponse(
+        response=content,
+        messages=[*req.messages, {"role": "assistant", "content": content}],
+    )
 
 
 @router.post("/agent/stream")
@@ -158,130 +123,39 @@ def agent_stream(req: AgentRequest, request: Request):
     if not GROQ_API_KEY:
         raise HTTPException(status_code=503, detail="GROQ_API_KEY no configurada")
 
-    client     = Groq(api_key=GROQ_API_KEY)
-    system     = _build_system_prompt(request.app.state)
-    messages   = [{"role": "system", "content": system}, *req.messages]
     user_input = req.messages[-1]["content"] if req.messages else ""
 
     def generate():
-        if _LANGFUSE_ENABLED:
-            from langfuse import get_client, propagate_attributes
-            langfuse  = get_client()
-            agent_ctx = langfuse.start_as_current_observation(
-                as_type="agent", name="tasajusta-agent", input=user_input,
-            )
-            attrs_ctx = propagate_attributes(session_id=req.session_id, tags=["agent", "tasajusta"])
-        else:
-            agent_ctx = nullcontext()
-            attrs_ctx = nullcontext()
+        agent_ctx, attrs_ctx = _langfuse_ctxs(req, user_input)
 
         try:
             with agent_ctx as agent_obs:
                 with attrs_ctx:
-                    for _ in range(5):
-                        stream = client.chat.completions.create(
-                            model="openai/gpt-oss-120b",
-                            messages=messages,
-                            tools=TOOLS,
-                            tool_choice="auto",
-                            max_tokens=1024,
-                            stream=True,
-                        )
+                    graph        = _make_graph(request.app.state)
+                    full_content = ""
 
-                        tool_calls_acc = {}
-                        full_content   = ""
-                        finish_reason  = None
+                    for chunk_msg, _ in graph.stream(
+                        {"messages": _to_lc(req.messages)},
+                        stream_mode="messages",
+                    ):
+                        # Filtrar: solo tokens del LLM en la respuesta final
+                        # (excluye tool_call_chunks = chunks con argumentos de tools)
+                        if (
+                            isinstance(chunk_msg, AIMessageChunk)
+                            and chunk_msg.content
+                            and not chunk_msg.tool_call_chunks
+                        ):
+                            full_content += chunk_msg.content
+                            yield f"data: {json.dumps({'token': chunk_msg.content})}\n\n"
 
-                        for chunk in stream:
-                            choice = chunk.choices[0]
-                            delta  = choice.delta
+                    if agent_obs is not None:
+                        agent_obs.update(output=full_content)
 
-                            if delta.tool_calls:
-                                for tc in delta.tool_calls:
-                                    idx = tc.index
-                                    if idx not in tool_calls_acc:
-                                        tool_calls_acc[idx] = {"id": "", "name": "", "arguments": ""}
-                                    if tc.id:
-                                        tool_calls_acc[idx]["id"] = tc.id
-                                    if tc.function:
-                                        if tc.function.name:
-                                            tool_calls_acc[idx]["name"] = tc.function.name
-                                        if tc.function.arguments:
-                                            tool_calls_acc[idx]["arguments"] += tc.function.arguments
+                    final_msgs = [*req.messages, {"role": "assistant", "content": full_content}]
+                    yield f"data: {json.dumps({'done': True, 'messages': final_msgs})}\n\n"
 
-                            if delta.content:
-                                full_content += delta.content
-                                yield f"data: {json.dumps({'token': delta.content})}\n\n"
-
-                            if choice.finish_reason:
-                                finish_reason = choice.finish_reason
-
-                        if finish_reason == "tool_calls":
-                            tool_calls = [
-                                {
-                                    "id":       tool_calls_acc[i]["id"],
-                                    "type":     "function",
-                                    "function": {
-                                        "name":      tool_calls_acc[i]["name"],
-                                        "arguments": tool_calls_acc[i]["arguments"],
-                                    },
-                                }
-                                for i in sorted(tool_calls_acc)
-                            ]
-
-                            messages.append({
-                                "role":       "assistant",
-                                "content":    None,
-                                "tool_calls": tool_calls,
-                            })
-
-                            for tc_dict in tool_calls:
-                                name         = tc_dict["function"]["name"]
-                                arguments    = tc_dict["function"]["arguments"]
-                                tool_call_id = tc_dict["id"]
-
-                                if _LANGFUSE_ENABLED:
-                                    tool_ctx = langfuse.start_as_current_observation(
-                                        as_type="tool",
-                                        name=name,
-                                        input=json.loads(arguments),
-                                    )
-                                else:
-                                    tool_ctx = nullcontext()
-
-                                with tool_ctx as tool_obs:
-                                    try:
-                                        result = execute_tool(
-                                            name=name,
-                                            arguments=arguments,
-                                            app_state=request.app.state,
-                                        )
-                                    except Exception as e:
-                                        result = f"Error ejecutando {name}: {e}"
-                                    if tool_obs is not None:
-                                        tool_obs.update(output=result)
-
-                                messages.append({
-                                    "role":         "tool",
-                                    "tool_call_id": tool_call_id,
-                                    "content":      result,
-                                })
-
-                        else:
-                            if agent_obs is not None:
-                                agent_obs.update(output=full_content)
-                            final_messages = [*req.messages, {"role": "assistant", "content": full_content}]
-                            yield f"data: {json.dumps({'done': True, 'messages': final_messages})}\n\n"
-                            return
-
-                    yield f"data: {json.dumps({'error': 'El agente no pudo completar la respuesta'})}\n\n"
-
-        except BadRequestError as e:
-            yield f"data: {json.dumps({'error': f'Error en la solicitud al modelo: {e}'})}\n\n"
-        except APIStatusError as e:
-            yield f"data: {json.dumps({'error': f'Error del servicio de IA: {e.status_code}'})}\n\n"
         except Exception as e:
-            yield f"data: {json.dumps({'error': f'Error inesperado: {e}'})}\n\n"
+            yield f"data: {json.dumps({'error': f'Error del agente: {e}'})}\n\n"
 
     return StreamingResponse(
         generate(),

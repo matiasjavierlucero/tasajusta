@@ -1,6 +1,8 @@
 fastapi>=0.111
 mangum>=0.17
 groq>=0.9
+langchain-groq>=0.2
+langgraph>=0.2
 langfuse>=3.0
 openinference-instrumentation-groq>=0.1
 lightgbm>=4.0

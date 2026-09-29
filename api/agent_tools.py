@@ -236,6 +236,61 @@ def _coerce(args: dict) -> dict:
     return args
 
 
+# ── LangChain tool wrappers ───────────────────────────────────────────────────
+
+def make_langchain_tools(app_state):
+    """Factory: crea herramientas LangChain cerrando sobre app_state."""
+    from langchain_core.tools import tool
+
+    _b = buscar_autos
+    _t = top_oportunidades
+    _p = predecir_precio
+
+    @tool
+    def buscar_autos(
+        marca: str | None = None,
+        modelo: str | None = None,
+        provincia: str | None = None,
+        anio_min: int | None = None,
+        anio_max: int | None = None,
+        km_min: int | None = None,
+        km_max: int | None = None,
+        precio_max: int | None = None,
+        solo_oportunidades: bool = False,
+    ) -> str:
+        """Busca autos en la base de datos según filtros. precio_max debe estar en PESOS ARGENTINOS (convertir USD antes)."""
+        return _b(
+            marca=marca, modelo=modelo, provincia=provincia,
+            anio_min=anio_min, anio_max=anio_max,
+            km_min=km_min, km_max=km_max,
+            precio_max=precio_max, solo_oportunidades=solo_oportunidades,
+        )
+
+    @tool
+    def top_oportunidades(
+        marca: str | None = None,
+        provincia: str | None = None,
+        limite: int = 5,
+    ) -> str:
+        """Devuelve los autos más subvaluados: mayor diferencia entre precio publicado y precio estimado por ML."""
+        return _t(marca=marca, provincia=provincia, limite=limite)
+
+    @tool
+    def predecir_precio(
+        marca: str,
+        modelo: str,
+        provincia: str,
+        anio: int,
+        km: int,
+    ) -> str:
+        """Estima el precio justo de mercado para un auto con las características dadas."""
+        return _p(marca=marca, modelo=modelo, provincia=provincia, anio=anio, km=km, app_state=app_state)
+
+    return [buscar_autos, top_oportunidades, predecir_precio]
+
+
+# ── Dispatcher (legado, sigue siendo usado por tests) ─────────────────────────
+
 def execute_tool(name: str, arguments: str, app_state=None) -> str:
     args = _coerce(json.loads(arguments))
     if name == "buscar_autos":
