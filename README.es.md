@@ -237,7 +237,7 @@ uvicorn api.main:app --reload
 # → http://localhost:8000/docs
 ```
 
----
+----
 
 ## Estructura del repositorio
 
@@ -271,7 +271,7 @@ tasajusta/
 └── Dockerfile           # imagen Lambda
 ```
 
----
+----
 
 ## Licencia
 
