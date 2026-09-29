@@ -62,7 +62,7 @@ export default function AgentChat() {
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
           try {
-            const parsed = JSON.parse(line.slice(6));
+            const parsed = JSON.parse(line.slice(6).trim());
 
             if (parsed.token) {
               if (!streaming) {

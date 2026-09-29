@@ -93,7 +93,7 @@ def agent(req: AgentRequest, request: Request):
             with attrs_ctx:
                 for _ in range(5):
                     response = client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
+                        model="openai/gpt-oss-120b",
                         messages=messages,
                         tools=TOOLS,
                         tool_choice="auto",
@@ -180,7 +180,7 @@ def agent_stream(req: AgentRequest, request: Request):
                 with attrs_ctx:
                     for _ in range(5):
                         stream = client.chat.completions.create(
-                            model="llama-3.3-70b-versatile",
+                            model="openai/gpt-oss-120b",
                             messages=messages,
                             tools=TOOLS,
                             tool_choice="auto",
