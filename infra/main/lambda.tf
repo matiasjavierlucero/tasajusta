@@ -20,6 +20,9 @@ resource "aws_lambda_function" "predict" {
       GROQ_API_KEY         = var.groq_api_key
       SUPABASE_URL         = var.supabase_url
       SUPABASE_SERVICE_KEY = var.supabase_service_key
+      LANGFUSE_PUBLIC_KEY  = var.langfuse_public_key
+      LANGFUSE_SECRET_KEY  = var.langfuse_secret_key
+      LANGFUSE_BASE_URL    = var.langfuse_base_url
       # MINIO_ENDPOINT no seteado → boto3 usa el IAM role del Lambda
     }
   }

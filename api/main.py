@@ -6,12 +6,19 @@ from datetime import date, datetime, timezone
 from dotenv import load_dotenv
 from fastapi import FastAPI
 
+load_dotenv()
+
+# Instrumentación del cliente Groq vía OpenTelemetry.
+# DEBE ir ANTES de importar los routes que crean instancias de Groq,
+# para que el monkey-patch esté activo cuando se llame Groq().
+if os.getenv("LANGFUSE_PUBLIC_KEY"):
+    from openinference.instrumentation.groq import GroqInstrumentor
+    GroqInstrumentor().instrument()
+
 from etl.infra import get_pg_connection, get_s3_client
 from api.routes.predict import router as predict_router
 from api.routes.metrics import router as metrics_router
 from api.routes.agent import router as agent_router
-
-load_dotenv()
 
 MODELS_BUCKET = os.getenv("MODELS_BUCKET", "tasajusta-models")
 
@@ -54,6 +61,11 @@ async def lifespan(app: FastAPI):
     app.state.predictions_served = 0
 
     yield
+
+    # Vaciar el buffer de Langfuse antes del shutdown para no perder traces
+    if os.getenv("LANGFUSE_PUBLIC_KEY"):
+        from langfuse import get_client
+        get_client().flush()
 
     app.state.model      = None
     app.state.model_key  = None

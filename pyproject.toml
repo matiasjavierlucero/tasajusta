@@ -18,6 +18,9 @@ dependencies = [
     "fastapi>=0.111",
     "uvicorn>=0.30",
     "groq>=0.9",
+    # Observabilidad
+    "langfuse>=3.0",
+    "openinference-instrumentation-groq>=0.1",
 ]
 
 [dependency-groups]

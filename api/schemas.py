@@ -22,6 +22,10 @@ class AgentRequest(BaseModel):
         ...,
         example=[{"role": "user", "content": "Busco un Toyota Corolla en Córdoba, máximo 80k km"}],
     )
+    session_id: str | None = Field(
+        None,
+        description="ID de sesión para agrupar los turnos de una misma conversación en Langfuse.",
+    )
 
 
 class AgentResponse(BaseModel):

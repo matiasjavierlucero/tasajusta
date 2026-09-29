@@ -29,3 +29,18 @@ variable "supabase_service_key" {
   description = "Service key de Supabase para el agente"
   sensitive   = true
 }
+
+variable "langfuse_public_key" {
+  description = "Public key de Langfuse para observabilidad del agente"
+  sensitive   = true
+}
+
+variable "langfuse_secret_key" {
+  description = "Secret key de Langfuse para observabilidad del agente"
+  sensitive   = true
+}
+
+variable "langfuse_base_url" {
+  description = "Base URL de Langfuse (cloud.langfuse.com o self-hosted)"
+  default     = "https://cloud.langfuse.com"
+}
