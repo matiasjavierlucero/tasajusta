@@ -18,6 +18,8 @@ dependencies = [
     "fastapi>=0.111",
     "uvicorn>=0.30",
     "groq>=0.9",
+    # MCP server
+    "mcp[cli]>=2.0",
     # Agente
     "langchain-groq>=0.2",
     "langgraph>=0.2",

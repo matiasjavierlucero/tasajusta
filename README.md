@@ -15,6 +15,8 @@ TasaJusta estimates the fair market price of a used vehicle based on real listin
 - **Blue-dollar cross** — Every estimate includes the USD equivalent at the current informal exchange rate — a signal unique to the Argentine market.
 - **Dual data source** — Listings from DeRuedas (scraped weekly) and Kavak (scraped daily Mon–Fri).
 - **Weekly + daily pipeline** — DeRuedas scrapes every Sunday; Kavak runs every weekday and retrains the model with fresh data.
+- **Conversational agent** — Floating chat UI backed by a LangGraph ReAct agent (Groq LLM) with streaming SSE responses and Langfuse observability.
+- **MCP server** — Exposes the market intelligence tools as a native MCP server, usable from Claude Desktop, Cursor, or any MCP-compatible client.
 
 ---
 
@@ -55,6 +57,9 @@ bluelytics.com.ar ──► extract_dolar.py ──► Supabase (daily)
 | Database | Supabase (PostgreSQL) |
 | ML | LightGBM, scikit-learn, PyTorch (MLP comparison) |
 | API | FastAPI + Mangum (Lambda adapter) |
+| Agent | LangGraph (`create_react_agent`) + Groq (`openai/gpt-oss-120b`) + streaming SSE |
+| Observability | Langfuse v4 — traces, generation spans, session grouping |
+| MCP | `mcp[cli]` Python SDK — stdio server exposing 4 tools |
 | Infra | AWS Lambda, API Gateway, ECR, IAM — all provisioned with Terraform |
 | CI/CD | GitHub Actions with OIDC (no long-lived AWS credentials) |
 | Frontend | Next.js 14 App Router, Tailwind CSS, deployed on Vercel |
@@ -150,6 +155,63 @@ Authentication uses **OIDC** — GitHub Actions assumes an IAM role via federate
 
 ---
 
+## Conversational agent
+
+A floating chat widget powered by a LangGraph ReAct agent that queries real listings from Supabase and estimates prices using the deployed LightGBM model.
+
+```
+User message
+    │
+    ▼
+LangGraph create_react_agent (Groq openai/gpt-oss-120b)
+    │
+    ├── buscar_autos       → Supabase PostgREST query
+    ├── top_oportunidades  → Supabase, sorted by oportunidad_score desc
+    └── predecir_precio    → in-process LightGBM inference
+    │
+    ▼
+Streaming SSE response (token by token via /agent/stream)
+    │
+    ▼
+AgentChat.tsx (ReadableStream reader, progressive rendering)
+```
+
+**Observability:** every agent turn generates a Langfuse trace — the root `tasajusta-agent` span wraps the full ReAct cycle; Groq calls are auto-instrumented as `generation` spans via `GroqInstrumentor`.
+
+---
+
+## MCP server
+
+`mcp_server.py` exposes the market intelligence tools via the [Model Context Protocol](https://modelcontextprotocol.io), making them available to any MCP-compatible client (Claude Desktop, Cursor, VS Code extensions, n8n).
+
+**Tools exposed:**
+
+| Tool | Description |
+|------|-------------|
+| `buscar_autos` | Search listings with filters (make, model, province, price, km, year) |
+| `top_oportunidades` | Top underpriced listings ranked by ML opportunity score |
+| `predecir_precio` | Market price estimate via the deployed Lambda/LightGBM endpoint |
+| `cotizacion_dolar` | Live blue-dollar rate from dolarapi.com |
+
+**Claude Desktop setup** (`~/.config/Claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "tasajusta": {
+      "command": "uv",
+      "args": ["--directory", "/path/to/tasajusta", "run", "mcp_server.py"],
+      "env": {
+        "SUPABASE_URL": "...",
+        "SUPABASE_SERVICE_KEY": "..."
+      }
+    }
+  }
+}
+```
+
+---
+
 ## Key architectural decisions
 
 **Why Lambda over EC2?**
@@ -218,9 +280,13 @@ tasajusta/
 │   ├── evaluate.py           # side-by-side metrics
 │   └── score_autos.py        # batch scoring → opportunity detection
 ├── api/
-│   ├── main.py               # FastAPI app + lifespan (model loaded once at startup)
-│   ├── routes/predict.py     # POST /predict
-│   └── schemas.py            # PredictRequest / PredictResponse
+│   ├── main.py               # FastAPI app + lifespan + GroqInstrumentor setup
+│   ├── routes/
+│   │   ├── predict.py        # POST /predict — LightGBM inference
+│   │   └── agent.py          # POST /agent + /agent/stream — LangGraph ReAct agent
+│   ├── agent_tools.py        # Tool implementations (Supabase queries) + LangChain wrappers
+│   └── schemas.py            # Pydantic models
+├── mcp_server.py             # MCP stdio server — exposes 4 tools to Claude Desktop / Cursor
 ├── web/                      # Next.js 14 frontend
 │   └── app/
 │       ├── page.tsx
@@ -228,8 +294,11 @@ tasajusta/
 │       │   ├── PredictForm.tsx          # client component — estimator form
 │       │   ├── DolarSection.tsx         # server component — blue-dollar rates
 │       │   ├── OportunidadesSection.tsx # server component — opportunity cards
-│       │   └── VehiculosSection.tsx     # server component — full listings table
-│       └── api/predict/route.ts         # Route Handler proxy → Lambda (avoids CORS)
+│       │   ├── VehiculosSection.tsx     # server component — full listings table
+│       │   └── AgentChat.tsx            # client component — streaming chat widget
+│       └── api/
+│           ├── predict/route.ts         # Route Handler proxy → Lambda /predict
+│           └── agent/route.ts           # Route Handler proxy → Lambda /agent/stream (SSE)
 ├── infra/
 │   ├── bootstrap/            # S3 + DynamoDB for Terraform remote state
 │   └── main/                 # Lambda, API Gateway, ECR, IAM, S3
