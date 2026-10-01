@@ -16,7 +16,7 @@ TasaJusta estimates the fair market price of a used vehicle based on real listin
 - **Dual data source** — Listings from DeRuedas (scraped weekly) and Kavak (scraped daily Mon–Fri).
 - **Weekly + daily pipeline** — DeRuedas scrapes every Sunday; Kavak runs every weekday and retrains the model with fresh data.
 - **Conversational agent** — Floating chat UI backed by a LangGraph ReAct agent (Groq LLM) with streaming SSE responses and Langfuse observability.
-- **MCP server** — Exposes the market intelligence tools as a native MCP server, usable from Claude Desktop, Cursor, or any MCP-compatible client.
+- **MCP servers** — Three MCP servers expose market intelligence, analytics, ML model introspection, and data pipeline visibility to Claude Desktop, Cursor, or any MCP-compatible client.
 
 ---
 
@@ -59,7 +59,7 @@ bluelytics.com.ar ──► extract_dolar.py ──► Supabase (daily)
 | API | FastAPI + Mangum (Lambda adapter) |
 | Agent | LangGraph (`create_react_agent`) + Groq (`openai/gpt-oss-120b`) + streaming SSE |
 | Observability | Langfuse v4 — traces, generation spans, session grouping |
-| MCP | `mcp[cli]` Python SDK — stdio server exposing 4 tools |
+| MCP | `mcp[cli]` Python SDK — 3 stdio servers exposing 9 tools |
 | Infra | AWS Lambda, API Gateway, ECR, IAM — all provisioned with Terraform |
 | CI/CD | GitHub Actions with OIDC (no long-lived AWS credentials) |
 | Frontend | Next.js 14 App Router, Tailwind CSS, deployed on Vercel |
@@ -180,11 +180,11 @@ AgentChat.tsx (ReadableStream reader, progressive rendering)
 
 ---
 
-## MCP server
+## MCP servers
 
-`mcp_server.py` exposes the market intelligence tools via the [Model Context Protocol](https://modelcontextprotocol.io), making them available to any MCP-compatible client (Claude Desktop, Cursor, VS Code extensions, n8n).
+Three MCP servers expose different layers of TasaJusta to any MCP-compatible client (Claude Desktop, Cursor, VS Code extensions, n8n):
 
-**Tools exposed:**
+### `mcp_server.py` — Market intelligence (consumer-facing)
 
 | Tool | Description |
 |------|-------------|
@@ -192,6 +192,31 @@ AgentChat.tsx (ReadableStream reader, progressive rendering)
 | `top_oportunidades` | Top underpriced listings ranked by ML opportunity score |
 | `predecir_precio` | Market price estimate via the deployed Lambda/LightGBM endpoint |
 | `cotizacion_dolar` | Live blue-dollar rate from dolarapi.com |
+
+### `mcp_analytics.py` — Market analytics
+
+| Tool | Description |
+|------|-------------|
+| `resumen_mercado` | Dataset overview: listing counts, sources, price range, opportunity ratio |
+| `distribucion_precios` | Price distribution (p25/p50/p75/σ) for any make/model |
+| `tendencia_dolar` | Blue-dollar rate trend for the last N days |
+
+### `mcp_ml.py` — ML model introspection
+
+Requires `uv sync --group tracking` (MLflow local).
+
+| Tool | Description |
+|------|-------------|
+| `experimentos_recientes` | Last N training runs with R², MAE, MAPE, and overfitting gap |
+| `mejor_modelo` | Run with the best test R² — the production candidate |
+| `detalle_run` | Full params + metrics for a specific run (accepts short ID prefix) |
+
+### `mcp_datalake.py` — Data pipeline visibility
+
+| Tool | Description |
+|------|-------------|
+| `estado_datalake` | Latest ingestion timestamp and file size per layer (bronze/silver/gold) |
+| `estado_modelos` | Model artifacts in S3, newest tagged as production |
 
 **Claude Desktop setup** (`~/.config/Claude/claude_desktop_config.json`):
 
@@ -204,6 +229,26 @@ AgentChat.tsx (ReadableStream reader, progressive rendering)
       "env": {
         "SUPABASE_URL": "...",
         "SUPABASE_SERVICE_KEY": "..."
+      }
+    },
+    "tasajusta-analytics": {
+      "command": "uv",
+      "args": ["--directory", "/path/to/tasajusta", "run", "mcp_analytics.py"],
+      "env": {
+        "SUPABASE_URL": "...",
+        "SUPABASE_SERVICE_KEY": "..."
+      }
+    },
+    "tasajusta-ml": {
+      "command": "uv",
+      "args": ["--directory", "/path/to/tasajusta", "run", "--group", "tracking", "mcp_ml.py"]
+    },
+    "tasajusta-datalake": {
+      "command": "uv",
+      "args": ["--directory", "/path/to/tasajusta", "run", "mcp_datalake.py"],
+      "env": {
+        "MINIO_BUCKET": "tasajusta-datalake-966940665955",
+        "MODELS_BUCKET": "tasajusta-models-966940665955"
       }
     }
   }
@@ -286,7 +331,10 @@ tasajusta/
 │   │   └── agent.py          # POST /agent + /agent/stream — LangGraph ReAct agent
 │   ├── agent_tools.py        # Tool implementations (Supabase queries) + LangChain wrappers
 │   └── schemas.py            # Pydantic models
-├── mcp_server.py             # MCP stdio server — exposes 4 tools to Claude Desktop / Cursor
+├── mcp_server.py             # MCP — market intelligence (4 tools: search, opportunities, predict, dolar)
+├── mcp_analytics.py          # MCP — market analytics (3 tools: summary, price distribution, dolar trend)
+├── mcp_ml.py                 # MCP — ML introspection (3 tools: experiments, best model, run detail)
+├── mcp_datalake.py           # MCP — data pipeline visibility (2 tools: datalake status, model artifacts)
 ├── web/                      # Next.js 14 frontend
 │   └── app/
 │       ├── page.tsx

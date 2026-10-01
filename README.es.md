@@ -172,6 +172,9 @@ Autenticación con AWS vía **OIDC** — sin credenciales de larga duración alm
 | Base de datos | Supabase (PostgreSQL) |
 | ML | LightGBM, scikit-learn, PyTorch |
 | API | FastAPI, Mangum (AWS Lambda adapter) |
+| Agente | LangGraph + Groq + streaming SSE |
+| Observabilidad | Langfuse v4 |
+| MCP | `mcp[cli]` — 3 servidores stdio, 9 tools |
 | Frontend | Next.js 14, Tailwind CSS, Vercel |
 | IaC | Terraform |
 | CI/CD | GitHub Actions |
@@ -237,18 +240,65 @@ uvicorn api.main:app --reload
 # → http://localhost:8000/docs
 ```
 
-----
+---
+
+## Servidores MCP
+
+Tres servidores MCP exponen distintas capas del sistema a clientes como Claude Desktop, Cursor o VS Code:
+
+| Servidor | Tools | Para qué sirve |
+|----------|-------|----------------|
+| `mcp_server.py` | 4 | Buscar autos, oportunidades, estimar precio, cotización dólar |
+| `mcp_analytics.py` | 3 | Resumen de mercado, distribución de precios, tendencia dólar |
+| `mcp_ml.py` | 3 | Historial de experimentos MLflow, mejor modelo, detalle de un run |
+| `mcp_datalake.py` | 2 | Estado del pipeline S3 por capa, artefactos de modelos en producción |
+
+**Configuración en Claude Desktop** (`~/.config/Claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "tasajusta": {
+      "command": "uv",
+      "args": ["--directory", "/ruta/a/tasajusta", "run", "mcp_server.py"],
+      "env": { "SUPABASE_URL": "...", "SUPABASE_SERVICE_KEY": "..." }
+    },
+    "tasajusta-analytics": {
+      "command": "uv",
+      "args": ["--directory", "/ruta/a/tasajusta", "run", "mcp_analytics.py"],
+      "env": { "SUPABASE_URL": "...", "SUPABASE_SERVICE_KEY": "..." }
+    },
+    "tasajusta-ml": {
+      "command": "uv",
+      "args": ["--directory", "/ruta/a/tasajusta", "run", "--group", "tracking", "mcp_ml.py"]
+    },
+    "tasajusta-datalake": {
+      "command": "uv",
+      "args": ["--directory", "/ruta/a/tasajusta", "run", "mcp_datalake.py"],
+      "env": {
+        "MINIO_BUCKET": "tasajusta-datalake-966940665955",
+        "MODELS_BUCKET": "tasajusta-models-966940665955"
+      }
+    }
+  }
+}
+```
+
+---
 
 ## Estructura del repositorio
 
 ```
 tasajusta/
-├── api/                  # FastAPI — endpoint de predicción
+├── api/                  # FastAPI — predicción + agente LangGraph
 │   ├── main.py           # lifespan: carga modelo + cotización blue
 │   ├── routes/predict.py # POST /predict
+│   ├── routes/agent.py   # POST /agent + /agent/stream (SSE)
+│   ├── agent_tools.py    # tools del agente (Supabase + LightGBM)
 │   └── schemas.py        # PredictRequest / PredictResponse
 ├── etl/
 │   ├── scrape_deruedas.py  # scraper (3 segmentos, toda Argentina)
+│   ├── scrape_kavak.py     # scraper Kavak (diario)
 │   ├── transform_autos.py  # bronze → silver
 │   ├── load_autos.py       # silver → Supabase
 │   ├── gold_autos.py       # silver → gold (feature engineering)
@@ -257,14 +307,24 @@ tasajusta/
 │   ├── load_dolar.py       # → Supabase
 │   └── infra.py            # clientes S3 y Postgres
 ├── ml/
-│   ├── train_lgbm.py    # entrenamiento LightGBM
-│   ├── train_mlp.py     # entrenamiento MLP PyTorch
-│   └── evaluate.py      # métricas comparativas
+│   ├── train_lgbm.py    # entrenamiento LightGBM + MLflow tracking
+│   ├── train_mlp.py     # entrenamiento MLP PyTorch (baseline comparativo)
+│   ├── score_autos.py   # scoring batch → oportunidades en Supabase
+│   └── evaluate.py      # métricas comparativas LightGBM vs MLP
+├── mcp_server.py        # MCP — inteligencia de mercado (4 tools)
+├── mcp_analytics.py     # MCP — analytics de mercado (3 tools)
+├── mcp_ml.py            # MCP — introspección del modelo ML (3 tools)
+├── mcp_datalake.py      # MCP — visibilidad del pipeline S3 (2 tools)
 ├── web/                 # Next.js 14
 │   └── app/
 │       ├── page.tsx
-│       ├── components/PredictForm.tsx
-│       └── api/predict/route.ts   # proxy → Lambda (evita CORS)
+│       ├── components/
+│       │   ├── PredictForm.tsx          # formulario de cotización
+│       │   ├── OportunidadesSection.tsx # cards de oportunidades
+│       │   └── AgentChat.tsx            # chat streaming con el agente
+│       └── api/
+│           ├── predict/route.ts   # proxy → Lambda /predict
+│           └── agent/route.ts     # proxy → Lambda /agent/stream (SSE)
 ├── infra/               # Terraform
 ├── .github/workflows/   # GitHub Actions
 ├── docker-compose.yml   # dev local: app + postgres + minio

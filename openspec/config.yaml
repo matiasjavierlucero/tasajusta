@@ -1,0 +1,63 @@
+schema: spec-driven
+
+context: |
+  Tech stack: Python 3.11 monorepo — FastAPI API, LightGBM ML pipeline, LangGraph agent, Langfuse observability, MCP server
+  Frontend: Next.js 14 App Router + Supabase + Tailwind CSS + TypeScript
+  ETL: Polars + boto3 + S3/MinIO + Supabase Postgres
+  Infra: AWS Lambda (Docker) + Terraform + GitHub Actions CI
+  Architecture: monorepo — api/, etl/, ml/, web/, infra/ — ETL → S3 datalake → ML train → Lambda API
+
+strict_tdd: true
+
+testing:
+  strict_tdd: true
+  detected: "2026-10-01"
+  test_runner:
+    command: ".venv/bin/pytest"
+    framework: pytest
+  layers:
+    unit:
+      available: true
+      tool: pytest
+    integration:
+      available: false
+      note: no httpx/requests-mock for API testing yet
+    e2e:
+      available: false
+  coverage:
+    available: true
+    command: ".venv/bin/pytest --cov"
+  quality_tools:
+    linter:
+      available: true
+      command: ".venv/bin/ruff check ."
+    formatter:
+      available: true
+      command: ".venv/bin/ruff format ."
+    type_checker:
+      available: false
+      note: no mypy/pyright configured
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes (ETL, schema changes, ML retraining)
+    - Identify affected modules/packages (api/, etl/, ml/, web/)
+  specs:
+    - Use Given/When/Then format for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Include sequence diagrams for complex flows (ETL pipeline, ML scoring)
+    - Document architecture decisions with rationale
+  tasks:
+    - Group tasks by layer (etl, ml, api, web, infra, tests)
+    - Use hierarchical numbering (1.1, 1.2, etc.)
+    - Keep tasks small enough to complete in one session
+  apply:
+    - Follow existing code patterns (Polars, not pandas, for ETL)
+    - Load langfuse skill when touching observability/tracing code
+    - Load go-testing skill only for Go code (this project is Python/TS)
+  verify:
+    - Run .venv/bin/pytest after every apply batch
+    - Compare implementation against every spec scenario
+  archive:
+    - Warn before merging destructive deltas (large removals)
